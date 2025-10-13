@@ -1,0 +1,37 @@
+[gd_scene load_steps=3 format=3 uid="uid://h3ov7r8p9q0s1"]
+
+[ext_resource type="Script" path="res://scripts/map_mods/speed_pad_mod.gd" id="1_speed_pad"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_speedpad"]
+size = Vector2(100, 100)
+
+[node name="SpeedPad" type="Area2D"]
+collision_layer = 0
+collision_mask = 1
+script = ExtResource("1_speed_pad")
+
+[node name="Visual" type="Node2D" parent="."]
+
+[node name="Base" type="ColorRect" parent="Visual"]
+offset_left = -50.0
+offset_top = -50.0
+offset_right = 50.0
+offset_bottom = 50.0
+color = Color(1, 1, 0, 0.5)
+
+[node name="Arrow1" type="ColorRect" parent="Visual"]
+offset_left = -30.0
+offset_top = -10.0
+offset_right = 30.0
+offset_bottom = 10.0
+color = Color(0, 0, 0, 0.8)
+
+[node name="Arrow2" type="ColorRect" parent="Visual"]
+offset_left = 10.0
+offset_top = -20.0
+offset_right = 30.0
+offset_bottom = 20.0
+color = Color(0, 0, 0, 0.8)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("RectangleShape2D_speedpad")

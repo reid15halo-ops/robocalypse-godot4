@@ -1,0 +1,19 @@
+[remap]
+
+importer="mp3"
+type="AudioStreamMP3"
+uid="uid://bq1eikxdw25ee"
+path="res://.godot/imported/Robot Rumble.mp3-3697a8356f64a96a79a72d4de6c97422.mp3str"
+
+[deps]
+
+source_file="res://sounds/Robot Rumble.mp3"
+dest_files=["res://.godot/imported/Robot Rumble.mp3-3697a8356f64a96a79a72d4de6c97422.mp3str"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

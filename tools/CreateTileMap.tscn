@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://create_tilemap_tool"]
+
+[ext_resource type="Script" path="res://tools/create_tilemap.gd" id="1"]
+
+[node name="CreateTileMap" type="Node"]
+script = ExtResource("1")

@@ -1,0 +1,51 @@
+[gd_scene load_steps=3 format=3 uid="uid://r2o3c4k5e6t7rk"]
+
+[ext_resource type="Script" path="res://scripts/rocket.gd" id="1_rocket"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_rocket"]
+size = Vector2(16, 8)
+
+[node name="Rocket" type="Area2D"]
+collision_layer = 16
+collision_mask = 5
+script = ExtResource("1_rocket")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("RectangleShape2D_rocket")
+
+[node name="Visual" type="Node2D" parent="."]
+
+[node name="Body" type="ColorRect" parent="Visual"]
+offset_left = -8.0
+offset_top = -4.0
+offset_right = 8.0
+offset_bottom = 4.0
+color = Color(0.5, 0.5, 0.5, 1)
+
+[node name="Nose" type="ColorRect" parent="Visual"]
+offset_left = 6.0
+offset_top = -3.0
+offset_right = 12.0
+offset_bottom = 3.0
+color = Color(1, 0.5, 0, 1)
+
+[node name="WingTop" type="ColorRect" parent="Visual"]
+offset_left = -4.0
+offset_top = -6.0
+offset_right = 2.0
+offset_bottom = -4.0
+color = Color(0.7, 0.7, 0.7, 1)
+
+[node name="WingBottom" type="ColorRect" parent="Visual"]
+offset_left = -4.0
+offset_top = 4.0
+offset_right = 2.0
+offset_bottom = 6.0
+color = Color(0.7, 0.7, 0.7, 1)
+
+[node name="Flame" type="ColorRect" parent="Visual"]
+offset_left = -12.0
+offset_top = -2.0
+offset_right = -8.0
+offset_bottom = 2.0
+color = Color(1, 0.6, 0, 0.8)

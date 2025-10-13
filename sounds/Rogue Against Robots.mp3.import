@@ -1,0 +1,19 @@
+[remap]
+
+importer="mp3"
+type="AudioStreamMP3"
+uid="uid://c5hgi3ilxnkl"
+path="res://.godot/imported/Rogue Against Robots.mp3-6eaa887880f92edbc397e59552b52a73.mp3str"
+
+[deps]
+
+source_file="res://sounds/Rogue Against Robots.mp3"
+dest_files=["res://.godot/imported/Rogue Against Robots.mp3-6eaa887880f92edbc397e59552b52a73.mp3str"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

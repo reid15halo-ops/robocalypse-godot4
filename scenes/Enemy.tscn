@@ -1,0 +1,18 @@
+[gd_scene load_steps=4 format=3 uid="uid://d3m7k8q2p5vwx"]
+
+[ext_resource type="Script" path="res://scripts/enemy.gd" id="1_enemy"]
+[ext_resource type="SpriteFrames" path="res://assets/sprites/enemies/drone_standard.tres" id="2_sprite"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_enemy"]
+size = Vector2(40, 40)
+
+[node name="Enemy" type="CharacterBody2D"]
+script = ExtResource("1_enemy")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("RectangleShape2D_enemy")
+
+[node name="Sprite" type="AnimatedSprite2D" parent="."]
+sprite_frames = ExtResource("2_sprite")
+animation = &"hover"
+autoplay = "hover"

@@ -1,0 +1,284 @@
+[gd_scene load_steps=4 format=3 uid="uid://dw5k7n8m2q3vx"]
+
+[ext_resource type="Script" path="res://scripts/game.gd" id="1_game"]
+[ext_resource type="PackedScene" uid="uid://c4route_selection01" path="res://scenes/RouteSelection.tscn" id="4_route_selection"]
+
+[sub_resource type="RectangleShape2D" id="1_boundary_horizontal"]
+size = Vector2(1792, 64)
+
+[sub_resource type="RectangleShape2D" id="2_boundary_vertical"]
+size = Vector2(64, 1792)
+
+[node name="Game" type="Node2D"]
+script = ExtResource("1_game")
+
+[node name="Boundary" type="StaticBody2D" parent="."]
+collision_layer = 4
+collision_mask = 3
+
+[node name="Top" type="CollisionShape2D" parent="Boundary"]
+position = Vector2(896, -32)
+shape = SubResource("1_boundary_horizontal")
+
+[node name="Bottom" type="CollisionShape2D" parent="Boundary"]
+position = Vector2(896, 1824)
+shape = SubResource("1_boundary_horizontal")
+
+[node name="Left" type="CollisionShape2D" parent="Boundary"]
+position = Vector2(-32, 896)
+shape = SubResource("2_boundary_vertical")
+
+[node name="Right" type="CollisionShape2D" parent="Boundary"]
+position = Vector2(1824, 896)
+shape = SubResource("2_boundary_vertical")
+
+[node name="UI" type="CanvasLayer" parent="."]
+
+[node name="HealthBar" type="ProgressBar" parent="UI"]
+offset_left = 20.0
+offset_top = 20.0
+offset_right = 220.0
+offset_bottom = 47.0
+value = 100.0
+show_percentage = false
+
+[node name="ShieldBar" type="ProgressBar" parent="UI"]
+offset_left = 20.0
+offset_top = 20.0
+offset_right = 220.0
+offset_bottom = 47.0
+min_value = 0.0
+max_value = 100.0
+value = 0.0
+show_percentage = false
+mouse_filter = 2
+z_index = 1
+
+[node name="HealthLabel" type="Label" parent="UI"]
+offset_left = 20.0
+offset_top = 50.0
+offset_right = 220.0
+offset_bottom = 73.0
+text = "Health"
+
+[node name="ScoreLabel" type="Label" parent="UI"]
+offset_left = 20.0
+offset_top = 80.0
+offset_right = 220.0
+offset_bottom = 103.0
+text = "Score: 0"
+
+[node name="ScrapLabel" type="Label" parent="UI"]
+offset_left = 20.0
+offset_top = 110.0
+offset_right = 220.0
+offset_bottom = 133.0
+text = "Scrap: 0"
+
+[node name="DronePanel" type="PanelContainer" parent="UI"]
+visible = false
+offset_left = 20.0
+offset_top = 150.0
+offset_right = 250.0
+offset_bottom = 260.0
+
+[node name="VBoxContainer" type="VBoxContainer" parent="UI/DronePanel"]
+layout_mode = 2
+
+[node name="DroneTitle" type="Label" parent="UI/DronePanel/VBoxContainer"]
+layout_mode = 2
+text = "COMBAT DRONE"
+horizontal_alignment = 1
+
+[node name="DroneLevelLabel" type="Label" parent="UI/DronePanel/VBoxContainer"]
+layout_mode = 2
+text = "Level: 1"
+
+[node name="DroneHealthBar" type="ProgressBar" parent="UI/DronePanel/VBoxContainer"]
+layout_mode = 2
+max_value = 100.0
+value = 80.0
+show_percentage = false
+
+[node name="DroneXPBar" type="ProgressBar" parent="UI/DronePanel/VBoxContainer"]
+layout_mode = 2
+max_value = 100.0
+value = 0.0
+show_percentage = false
+
+[node name="DroneXPLabel" type="Label" parent="UI/DronePanel/VBoxContainer"]
+layout_mode = 2
+text = "XP: 0/100"
+
+[node name="ModeLabel" type="Label" parent="UI/DronePanel/VBoxContainer"]
+layout_mode = 2
+text = "[Press E to Control Drone]"
+horizontal_alignment = 1
+
+[node name="WaveLabel" type="Label" parent="UI"]
+offset_left = 1060.0
+offset_top = 20.0
+offset_right = 1260.0
+offset_bottom = 43.0
+text = "Wave: 1"
+horizontal_alignment = 2
+
+[node name="WaveTimerLabel" type="Label" parent="UI"]
+offset_left = 1060.0
+offset_top = 50.0
+offset_right = 1260.0
+offset_bottom = 73.0
+text = "Time: 60s"
+horizontal_alignment = 2
+
+[node name="PauseMenu" type="Control" parent="UI"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="ColorRect" type="ColorRect" parent="UI/PauseMenu"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0, 0.7)
+
+[node name="VBoxContainer" type="VBoxContainer" parent="UI/PauseMenu"]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -100.0
+offset_top = -60.0
+offset_right = 100.0
+offset_bottom = 60.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 20
+
+[node name="PausedLabel" type="Label" parent="UI/PauseMenu/VBoxContainer"]
+layout_mode = 2
+text = "PAUSED"
+horizontal_alignment = 1
+
+[node name="ResumeButton" type="Button" parent="UI/PauseMenu/VBoxContainer"]
+layout_mode = 2
+text = "Resume"
+
+[node name="QuitButton" type="Button" parent="UI/PauseMenu/VBoxContainer"]
+layout_mode = 2
+text = "Main Menu"
+
+[node name="WaveCompleteScreen" type="Control" parent="UI"]
+visible = false
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="ColorRect" type="ColorRect" parent="UI/WaveCompleteScreen"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0, 0.85)
+
+[node name="VBoxContainer" type="VBoxContainer" parent="UI/WaveCompleteScreen"]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -300.0
+offset_top = -200.0
+offset_right = 300.0
+offset_bottom = 200.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 30
+
+[node name="WaveCompleteLabel" type="Label" parent="UI/WaveCompleteScreen/VBoxContainer"]
+layout_mode = 2
+text = "WAVE COMPLETE!"
+horizontal_alignment = 1
+vertical_scale = 2.0
+
+[node name="ChooseItemLabel" type="Label" parent="UI/WaveCompleteScreen/VBoxContainer"]
+layout_mode = 2
+text = "Choose your upgrade:"
+horizontal_alignment = 1
+
+[node name="ItemsContainer" type="HBoxContainer" parent="UI/WaveCompleteScreen/VBoxContainer"]
+layout_mode = 2
+alignment = 1
+theme_override_constants/separation = 20
+
+[node name="GameOverScreen" type="Control" parent="UI"]
+visible = false
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="ColorRect" type="ColorRect" parent="UI/GameOverScreen"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.2, 0, 0, 0.8)
+
+[node name="VBoxContainer" type="VBoxContainer" parent="UI/GameOverScreen"]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -100.0
+offset_top = -80.0
+offset_right = 100.0
+offset_bottom = 80.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 20
+
+[node name="GameOverLabel" type="Label" parent="UI/GameOverScreen/VBoxContainer"]
+layout_mode = 2
+text = "GAME OVER"
+horizontal_alignment = 1
+
+[node name="FinalScoreLabel" type="Label" parent="UI/GameOverScreen/VBoxContainer"]
+layout_mode = 2
+text = "Final Score: 0"
+horizontal_alignment = 1
+
+[node name="RestartButton" type="Button" parent="UI/GameOverScreen/VBoxContainer"]
+layout_mode = 2
+text = "Restart"
+
+[node name="MainMenuButton" type="Button" parent="UI/GameOverScreen/VBoxContainer"]
+layout_mode = 2
+text = "Main Menu"
+
+[node name="RouteSelection" parent="UI" instance=ExtResource("4_route_selection")]
+
+[connection signal="pressed" from="UI/PauseMenu/VBoxContainer/ResumeButton" to="." method="_on_resume_pressed"]
+[connection signal="pressed" from="UI/PauseMenu/VBoxContainer/QuitButton" to="." method="_on_pause_quit_pressed"]
+[connection signal="pressed" from="UI/GameOverScreen/VBoxContainer/RestartButton" to="." method="_on_restart_pressed"]
+[connection signal="pressed" from="UI/GameOverScreen/VBoxContainer/MainMenuButton" to="." method="_on_gameover_quit_pressed"]

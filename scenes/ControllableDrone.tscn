@@ -1,0 +1,57 @@
+[gd_scene load_steps=3 format=3 uid="uid://d7k2n4m8p5qvx"]
+
+[ext_resource type="Script" path="res://scripts/controllable_drone.gd" id="1_drone"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_drone"]
+size = Vector2(40, 30)
+
+[node name="ControllableDrone" type="CharacterBody2D"]
+script = ExtResource("1_drone")
+
+[node name="Visual" type="Node2D" parent="."]
+
+[node name="Body" type="ColorRect" parent="Visual"]
+offset_left = -20.0
+offset_top = -15.0
+offset_right = 20.0
+offset_bottom = 15.0
+color = Color(0, 0.8, 1, 1)
+
+[node name="Wing1" type="ColorRect" parent="Visual"]
+offset_left = -25.0
+offset_top = -5.0
+offset_right = -18.0
+offset_bottom = 5.0
+color = Color(0, 0.6, 0.8, 1)
+
+[node name="Wing2" type="ColorRect" parent="Visual"]
+offset_left = 18.0
+offset_top = -5.0
+offset_right = 25.0
+offset_bottom = 5.0
+color = Color(0, 0.6, 0.8, 1)
+
+[node name="Core" type="ColorRect" parent="Visual"]
+offset_left = -8.0
+offset_top = -8.0
+offset_right = 8.0
+offset_bottom = 8.0
+color = Color(0, 1, 1, 1)
+
+[node name="Eye" type="ColorRect" parent="Visual"]
+offset_left = -4.0
+offset_top = -4.0
+offset_right = 4.0
+offset_bottom = 4.0
+color = Color(1, 1, 0, 1)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("RectangleShape2D_drone")
+
+[node name="LevelLabel" type="Label" parent="."]
+offset_left = -20.0
+offset_top = -35.0
+offset_right = 20.0
+offset_bottom = -15.0
+text = "LVL 1"
+horizontal_alignment = 1

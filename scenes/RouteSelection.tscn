@@ -1,0 +1,72 @@
+[gd_scene load_steps=2 format=3 uid="uid://c4route_selection01"]
+
+[ext_resource type="Script" path="res://scripts/route_selection.gd" id="1_route_selection"]
+
+[node name="RouteSelection" type="Control"]
+visible = false
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+process_mode = 3
+script = ExtResource("1_route_selection")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0, 0.75)
+
+[node name="Container" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -260.0
+offset_top = -200.0
+offset_right = 260.0
+offset_bottom = 200.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 20
+
+[node name="TitleLabel" type="Label" parent="Container"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 42
+text = "PFAD AUSWAEHLEN"
+horizontal_alignment = 1
+
+[node name="InstructionLabel" type="Label" parent="Container"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+text = "Laufe zu einem farbigen Pfeil, um die Route zu aktivieren."
+horizontal_alignment = 1
+
+[node name="DirectionLabels" type="VBoxContainer" parent="Container"]
+layout_mode = 2
+theme_override_constants/separation = 14
+
+[node name="UpLabel" type="Label" parent="Container/DirectionLabels"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "NORD (GRUEN) - SKYWARD RUSH [leicht]"
+horizontal_alignment = 1
+
+[node name="DownLabel" type="Label" parent="Container/DirectionLabels"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "SUED (GELB) - STORMFRONT [mittel]"
+horizontal_alignment = 1
+
+[node name="RightLabel" type="Label" parent="Container/DirectionLabels"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "OST (ROT) - EMP OVERLOAD [schwer]"
+horizontal_alignment = 1

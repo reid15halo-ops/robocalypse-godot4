@@ -1,0 +1,91 @@
+[gd_scene load_steps=3 format=3 uid="uid://d9n8m5q3p7vxz"]
+
+[ext_resource type="Script" path="res://scripts/boss_enemy.gd" id="1_boss"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_boss"]
+size = Vector2(50, 50)
+
+[node name="BossEnemy" type="CharacterBody2D"]
+script = ExtResource("1_boss")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("RectangleShape2D_boss")
+
+[node name="Visual" type="Node2D" parent="."]
+
+[node name="Body" type="ColorRect" parent="Visual"]
+offset_left = -25.0
+offset_top = -20.0
+offset_right = 25.0
+offset_bottom = 25.0
+color = Color(0.8, 0, 0.8, 1)
+
+[node name="Head" type="ColorRect" parent="Visual"]
+offset_left = -20.0
+offset_top = -30.0
+offset_right = 20.0
+offset_bottom = -20.0
+color = Color(0.7, 0, 0.7, 1)
+
+[node name="EyeLeft" type="ColorRect" parent="Visual"]
+offset_left = -15.0
+offset_top = -28.0
+offset_right = -8.0
+offset_bottom = -22.0
+color = Color(1, 0, 0, 1)
+
+[node name="EyeRight" type="ColorRect" parent="Visual"]
+offset_left = 8.0
+offset_top = -28.0
+offset_right = 15.0
+offset_bottom = -22.0
+color = Color(1, 0, 0, 1)
+
+[node name="ShoulderLeft" type="ColorRect" parent="Visual"]
+offset_left = -30.0
+offset_top = -15.0
+offset_right = -25.0
+offset_bottom = 10.0
+color = Color(0.6, 0, 0.6, 1)
+
+[node name="ShoulderRight" type="ColorRect" parent="Visual"]
+offset_left = 25.0
+offset_top = -15.0
+offset_right = 30.0
+offset_bottom = 10.0
+color = Color(0.6, 0, 0.6, 1)
+
+[node name="WeaponLeft" type="ColorRect" parent="Visual"]
+offset_left = -35.0
+offset_top = -5.0
+offset_right = -30.0
+offset_bottom = 15.0
+color = Color(0.3, 0.3, 0.3, 1)
+
+[node name="WeaponRight" type="ColorRect" parent="Visual"]
+offset_left = 30.0
+offset_top = -5.0
+offset_right = 35.0
+offset_bottom = 15.0
+color = Color(0.3, 0.3, 0.3, 1)
+
+[node name="CoreGlow" type="ColorRect" parent="Visual"]
+offset_left = -8.0
+offset_top = -5.0
+offset_right = 8.0
+offset_bottom = 10.0
+color = Color(1, 0.2, 1, 1)
+
+[node name="HealthBarBG" type="ColorRect" parent="."]
+offset_left = -30.0
+offset_top = -40.0
+offset_right = 30.0
+offset_bottom = -35.0
+color = Color(0.2, 0.2, 0.2, 1)
+
+[node name="HealthBar" type="ColorRect" parent="."]
+offset_left = -30.0
+offset_top = -40.0
+offset_right = 30.0
+offset_bottom = -35.0
+color = Color(1, 0, 0, 1)

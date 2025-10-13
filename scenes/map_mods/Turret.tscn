@@ -1,0 +1,40 @@
+[gd_scene load_steps=3 format=3 uid="uid://d9kr3n4l5m6o7"]
+
+[ext_resource type="Script" path="res://scripts/map_mods/turret_mod.gd" id="1_turret"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_turret"]
+radius = 400.0
+
+[node name="Turret" type="StaticBody2D"]
+collision_layer = 64
+collision_mask = 0
+script = ExtResource("1_turret")
+
+[node name="Visual" type="Node2D" parent="."]
+
+[node name="Base" type="ColorRect" parent="Visual"]
+offset_left = -20.0
+offset_top = -20.0
+offset_right = 20.0
+offset_bottom = 20.0
+color = Color(0.5, 0.5, 0.5, 1)
+
+[node name="Turret" type="ColorRect" parent="Visual"]
+offset_left = -8.0
+offset_top = -16.0
+offset_right = 8.0
+offset_bottom = 0.0
+color = Color(1, 0.3, 0, 1)
+
+[node name="DetectionArea" type="Area2D" parent="."]
+collision_layer = 0
+collision_mask = 2
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="DetectionArea"]
+shape = SubResource("CircleShape2D_turret")
+
+[node name="FireTimer" type="Timer" parent="."]
+wait_time = 0.5
+autostart = true
+
+[connection signal="timeout" from="FireTimer" to="." method="_on_fire_timer_timeout"]

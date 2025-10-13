@@ -1,0 +1,24 @@
+[gd_scene load_steps=3 format=3 uid="uid://b7c2qsmvy0l4"]
+
+[ext_resource type="Script" path="res://scripts/scrap_pickup.gd" id="1"]
+[ext_resource type="Texture2D" path="res://assets/sprites/items/item_scrap_32.png" id="2"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_scrap"]
+radius = 26.0
+
+[node name="ScrapPickup" type="Area2D"]
+script = ExtResource("1")
+collision_layer = 8
+collision_mask = 1
+z_index = 5
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("CircleShape2D_scrap")
+
+[node name="Visual" type="Node2D" parent="."]
+z_index = 6
+
+[node name="Sprite" type="Sprite2D" parent="Visual"]
+texture = ExtResource("2")
+scale = Vector2(1.4, 1.4)
+centered = true

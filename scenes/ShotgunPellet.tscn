@@ -1,0 +1,30 @@
+[gd_scene load_steps=3 format=3 uid="uid://s3h4o5t6g7u8np"]
+
+[ext_resource type="Script" path="res://scripts/shotgun_pellet.gd" id="1_pellet"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_pellet"]
+radius = 3.0
+
+[node name="ShotgunPellet" type="Area2D"]
+collision_layer = 16
+collision_mask = 5
+script = ExtResource("1_pellet")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("CircleShape2D_pellet")
+
+[node name="Visual" type="Node2D" parent="."]
+
+[node name="Core" type="ColorRect" parent="Visual"]
+offset_left = -3.0
+offset_top = -3.0
+offset_right = 3.0
+offset_bottom = 3.0
+color = Color(1, 1, 0.2, 1)
+
+[node name="Glow" type="ColorRect" parent="Visual"]
+offset_left = -4.0
+offset_top = -4.0
+offset_right = 4.0
+offset_bottom = 4.0
+color = Color(1, 0.8, 0, 0.4)
