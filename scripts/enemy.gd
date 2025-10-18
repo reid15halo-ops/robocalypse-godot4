@@ -1,8 +1,8 @@
 extends CharacterBody2D
 
 # Movement
-@export var min_speed: float = 100.0
-@export var max_speed: float = 150.0
+@export var min_speed: float = 110.0
+@export var max_speed: float = 165.0
 var current_speed: float = 100.0
 
 # Health
@@ -107,13 +107,14 @@ func _physics_process(delta: float) -> void:
 			_sniper_behavior()
 		elif enemy_color.b > 0.9 and enemy_color.g > 0.7:  # Cyan - Fast Drone
 			_fast_drone_behavior()
-	elif enemy_color.r > 0.5 and enemy_color.g > 0.2 and enemy_color.g < 0.4 and enemy_color.b < 0.3:  # Brown - Heavy Drone
-		_heavy_drone_behavior()
-	else:
-		# Standard drone - simple chase
-		_standard_behavior()
+		elif enemy_color.r > 0.5 and enemy_color.g > 0.2 and enemy_color.g < 0.4 and enemy_color.b < 0.3:  # Brown - Heavy Drone
+			_heavy_drone_behavior()
+		else:
+			# Standard drone - simple chase
+			_standard_behavior()
 
 	_apply_wall_avoidance(delta)
+	_apply_separation_force(delta)
 	move_and_slide()
 
 func apply_stun(duration: float) -> void:
@@ -208,7 +209,6 @@ func _kamikaze_explode() -> void:
 	get_parent().add_child(explosion)
 
 	# Damage player if in range
-	var player = GameManager.get_player()
 	if player and is_instance_valid(player):
 		var dist = global_position.distance_to(player.global_position)
 		if dist <= explosion_radius:
@@ -238,8 +238,23 @@ func _award_scrap(amount: int) -> void:
 # ============================================================================
 
 func _standard_behavior() -> void:
-	"""Standard drone - simple chase"""
-	var direction = _get_navigation_direction(player.global_position)
+	"""Standard drone - intelligent chase with tactics"""
+	# Use smart target selection
+	var target = _find_best_target()
+	if not target or not is_instance_valid(target):
+		velocity = Vector2.ZERO
+		return
+
+	# Predict target position
+	var predicted_pos = _predict_target_position(target, 0.3)
+
+	# Check if should flank
+	var target_pos = predicted_pos
+	if _should_use_flanking():
+		target_pos = _get_flanking_position()
+
+	# Navigate intelligently
+	var direction = _get_navigation_direction(target_pos)
 	velocity = direction * current_speed
 
 
@@ -248,7 +263,7 @@ func _fast_drone_behavior() -> void:
 	var distance = global_position.distance_to(player.global_position)
 
 	# Dash attack every 3 seconds when in range
-	if dash_cooldown <= 0 and distance < 300.0:
+	if dash_cooldown <= 0 and distance < 360.0:
 		_dash_attack()
 		dash_cooldown = 3.0
 	else:
@@ -275,7 +290,7 @@ func _heavy_drone_behavior() -> void:
 	var distance = global_position.distance_to(player.global_position)
 
 	# Shoot projectile every 2 seconds when in range
-	if attack_cooldown <= 0 and distance < 400.0:
+	if attack_cooldown <= 0 and distance < 480.0:
 		_shoot_projectile()
 		attack_cooldown = 2.0
 
@@ -320,11 +335,11 @@ func _sniper_behavior() -> void:
 	var distance = to_player.length()
 	var direction = _get_navigation_direction(player.global_position)
 
-	# Maintain distance between 300-500 pixels
-	if distance < 300.0:
+	# Maintain distance between 360-600 pixels
+	if distance < 360.0:
 		# Too close - back away
 		velocity = -direction * current_speed
-	elif distance > 500.0:
+	elif distance > 600.0:
 		# Too far - move closer
 		velocity = direction * current_speed * 0.5
 	else:
@@ -387,12 +402,12 @@ func _kamikaze_behavior() -> void:
 	var direction = _get_navigation_direction(player.global_position)
 
 	# Check for contact - explode immediately!
-	if distance < 40.0:  # Contact range
+	if distance < 48.0:  # Contact range
 		die()  # This triggers _kamikaze_explode() in die() function
 		return
 
-	# Accelerate when within 150 pixels
-	if distance < 150.0:
+	# Accelerate when within 180 pixels
+	if distance < 180.0:
 		velocity = direction * current_speed * 2.0  # Double speed
 		# Increase danger core pulse speed
 		if visual_node:
@@ -750,3 +765,145 @@ func _apply_wall_avoidance(delta: float) -> void:
 		else:
 			var perp := normal.rotated(deg_to_rad(90.0)).normalized()
 			velocity = perp * current_speed * 0.5
+
+
+# ============================================================================
+# ADVANCED AI SYSTEMS
+# ============================================================================
+
+func _apply_separation_force(delta: float) -> void:
+	"""Prevent enemies from clumping together (flocking separation)"""
+	var separation_radius: float = 60.0
+	var separation_strength: float = 80.0
+	var separation_force: Vector2 = Vector2.ZERO
+	var neighbor_count: int = 0
+
+	# Find nearby enemies
+	var nearby_enemies = get_tree().get_nodes_in_group("enemies")
+	for enemy in nearby_enemies:
+		if not is_instance_valid(enemy) or enemy == self:
+			continue
+
+		var enemy_node = enemy as Node2D
+		if enemy_node == null:
+			continue
+
+		var distance = global_position.distance_to(enemy_node.global_position)
+		if distance < separation_radius and distance > 0.1:
+			# Push away from neighbor
+			var away_dir = (global_position - enemy_node.global_position).normalized()
+			var push_strength = (separation_radius - distance) / separation_radius
+			separation_force += away_dir * push_strength
+			neighbor_count += 1
+
+	# Apply separation force
+	if neighbor_count > 0:
+		separation_force = separation_force / neighbor_count
+		velocity += separation_force * separation_strength * delta
+
+
+func _find_best_target() -> CharacterBody2D:
+	"""Advanced target selection with threat assessment"""
+	var player_target = GameManager.get_player()
+	if not player_target or not is_instance_valid(player_target):
+		return null
+
+	# Simple case: Only player exists
+	var potential_targets = [player_target]
+
+	# Check for player drones/pets
+	var all_targets = get_tree().get_nodes_in_group("player_controlled")
+	for target in all_targets:
+		if is_instance_valid(target) and target != player_target:
+			potential_targets.append(target)
+
+	# If only one target, return it
+	if potential_targets.size() == 1:
+		return player_target
+
+	# Score each target based on distance, threat, and health
+	var best_target = player_target
+	var best_score = -INF
+
+	for target in potential_targets:
+		if not is_instance_valid(target):
+			continue
+
+		var target_node = target as Node2D
+		if target_node == null:
+			continue
+
+		var distance = global_position.distance_to(target_node.global_position)
+		var score = 0.0
+
+		# Closer targets score higher
+		score += max(0, 500.0 - distance) / 5.0
+
+		# Low health targets score higher (if we can see health)
+		if "current_health" in target and "max_health" in target:
+			var health_percent = float(target.current_health) / float(target.max_health)
+			score += (1.0 - health_percent) * 50.0
+
+		# Attacking targets score higher
+		if "melee_timer" in target:
+			var melee_time = target.get("melee_timer")
+			if melee_time != null and melee_time < 0.1:
+				score += 30.0
+
+		if score > best_score:
+			best_score = score
+			best_target = target
+
+	return best_target
+
+
+func _predict_target_position(target: Node2D, prediction_time: float = 0.3) -> Vector2:
+	"""Predict where target will be based on their velocity"""
+	if not target or not is_instance_valid(target):
+		return global_position
+
+	var target_pos = target.global_position
+
+	# If target has velocity, predict future position
+	if "velocity" in target:
+		var target_velocity = target.get("velocity")
+		if target_velocity != null and target_velocity is Vector2:
+			if target_velocity.length() > 10.0:
+				target_pos += target_velocity * prediction_time
+
+	return target_pos
+
+
+func _should_use_flanking() -> bool:
+	"""Determine if enemy should try to flank the player"""
+	# Flanking behavior for smart enemies
+	if randf() > 0.7:  # 30% chance to flank
+		return true
+
+	# Flank if player is surrounded by allies
+	var allies_near_player = 0
+	var enemies = get_tree().get_nodes_in_group("enemies")
+	for enemy in enemies:
+		if not is_instance_valid(enemy) or enemy == self:
+			continue
+
+		if player and is_instance_valid(player):
+			var dist = enemy.global_position.distance_to(player.global_position)
+			if dist < 150.0:
+				allies_near_player += 1
+
+	return allies_near_player >= 3
+
+
+func _get_flanking_position() -> Vector2:
+	"""Get a flanking position around the player"""
+	if not player or not is_instance_valid(player):
+		return global_position
+
+	# Random angle offset for flanking
+	var angle_offset = randf_range(-PI/2, PI/2)
+	var to_player = (player.global_position - global_position).normalized()
+	var flank_dir = to_player.rotated(angle_offset)
+	var flank_distance = randf_range(100.0, 200.0)
+
+	return player.global_position + flank_dir * flank_distance

@@ -12,6 +12,7 @@ func _ready() -> void:
 
 
 func take_damage(damage_amount: int) -> void:
+	return
 	"""Take damage"""
 	health -= damage_amount
 

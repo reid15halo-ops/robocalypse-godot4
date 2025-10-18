@@ -50,6 +50,7 @@ func initialize(p_game_scene: Node2D, p_player: CharacterBody2D) -> void:
 # ============================================================================
 
 func spawn_miniboss(wave_number: int) -> void:
+	return
 	"""Spawn miniboss based on wave number"""
 	is_miniboss_defeated = false
 
@@ -426,14 +427,21 @@ func is_miniboss_active() -> bool:
 
 func wait_for_miniboss_defeat() -> void:
 	"""Wait until miniboss is defeated"""
-	while is_miniboss_active():
+	var timeout: float = 180.0  # 3 minute timeout
+	var elapsed: float = 0.0
+
+	while is_miniboss_active() and elapsed < timeout:
 		# Update health bar while miniboss is alive
 		update_health_bar()
 
 		await game_scene.get_tree().create_timer(0.1).timeout
+		elapsed += 0.1
+
+	# Check for timeout
+	if elapsed >= timeout:
+		print("WARNING: Miniboss wait timeout reached! Forcing defeat...")
+		is_miniboss_defeated = true
 
 	# Miniboss defeated - trigger cleanup
 	if not is_miniboss_defeated:
 		_on_miniboss_died()
-
-

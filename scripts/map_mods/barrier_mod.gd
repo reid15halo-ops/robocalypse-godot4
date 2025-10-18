@@ -24,6 +24,7 @@ func _ready() -> void:
 
 
 func take_damage(amount: int) -> void:
+	return
 	"""Take damage from enemies"""
 	current_health -= amount
 	current_health = max(0, current_health)

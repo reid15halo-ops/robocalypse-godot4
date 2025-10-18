@@ -1,5 +1,7 @@
 extends CharacterBody2D
 
+var wall_velocity: Vector2 = Vector2.ZERO
+
 # Movement
 @export var speed: float = 140.0  # Base speed before phase modifiers
 
@@ -139,7 +141,7 @@ func _physics_process(delta: float) -> void:
 		return
 
 	var direction: Vector2 = (player.global_position - global_position).normalized()
-	wall_velocity = direction * speed
+	velocity = direction * speed
 	move_and_slide()
 
 	_update_active_effects(delta)
@@ -198,10 +200,10 @@ func _update_active_effects(delta: float) -> void:
 				plasma_walls.remove_at(i)
 				continue
 
-			var wall_velocity: Vector2 = wall_entry.get("velocity", Vector2.ZERO)
+			wall_velocity = wall_entry.get("velocity", Vector2.ZERO)
 			var lifespan: float = wall_entry.get("lifespan", 0.0) - delta
 			var damage_timer: float = wall_entry.get("damage_timer", 0.0) + delta
-			node.global_position += velocity * delta
+			node.global_position += wall_velocity * delta
 
 			if player and is_instance_valid(player) and damage_timer >= 0.4:
 				if player.global_position.distance_to(node.global_position) <= wall_entry.get("damage_radius", 140.0):
@@ -327,7 +329,7 @@ func _orbital_strike() -> void:
 		if player and is_instance_valid(player) and player.global_position.distance_to(marker.global_position) <= 120.0:
 			if player.has_method("take_damage"):
 				player.take_damage(65 + phase * 10)
-		await get_tree().process_frame
+		get_tree().process_frame
 		if is_instance_valid(marker):
 			marker.queue_free()
 
@@ -394,6 +396,7 @@ func _rapid_barrage() -> void:
 
 
 func _plasma_wall() -> void:
+	return
 	var arena: Rect2 = _get_arena_rect()
 	var horizontal: bool = randf() < 0.5
 	var wall_node: Node2D = Node2D.new()
@@ -419,8 +422,8 @@ func _plasma_wall() -> void:
 	polygon.color = Color(0.6, 0.9, 1.2, 0.45)
 	wall_node.add_child(polygon)
 
-	var start_pos: Vector2
-	var wall_velocity: Vector2
+	var start_pos: Vector2 = Vector2.ZERO
+	wall_velocity = Vector2.ZERO
 	if horizontal:
 		var from_top: bool = randf() < 0.5
 		if from_top:
@@ -443,7 +446,7 @@ func _plasma_wall() -> void:
 
 	plasma_walls.append({
 		"node": wall_node,
-		"velocity": velocity,
+		"velocity": wall_velocity,
 		"lifespan": 5.0,
 		"damage_timer": 0.0,
 		"damage_radius": max(width, height) * 0.5
@@ -798,10 +801,3 @@ func _create_colorrect_visual() -> void:
 	var core_tween: Tween = create_tween().set_loops()
 	core_tween.tween_property(core, "scale", Vector2(1.2, 1.2), 0.5)
 	core_tween.tween_property(core, "scale", Vector2(0.8, 0.8), 0.5)
-
-
-
-
-
-
-
