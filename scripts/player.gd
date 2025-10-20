@@ -547,58 +547,26 @@ func _find_nearest_enemy() -> Node2D:
 
 func _setup_visual() -> void:
 	"""Setup player visual (sprite or ColorRect fallback)"""
-	# Get the Visual node from scene
-	visual_node = get_node_or_null("Visual")
+	# Get the Sprite node from scene (already configured in Player.tscn)
+	sprite = get_node_or_null("Sprite")
 
-	if use_sprites:
-		_create_sprite_visual()
-	else:
-		# ColorRect visual already exists in scene - just reference it
-		pass
-
-
-func _create_sprite_visual() -> void:
-	"""Create AnimatedSprite2D visual (when assets available)"""
-	var sprite_sheet_path: String = "res://assets/sprites/player/player_walk_64x64_8f.png"
-	if not ResourceLoader.exists(sprite_sheet_path):
+	if sprite == null:
+		print("Warning: Player Sprite node not found in scene!")
 		use_sprites = false
 		return
 
-	var sprite_sheet: Texture2D = load(sprite_sheet_path) as Texture2D
-	if sprite_sheet == null:
+	# Check if sprite_frames are loaded and have walk animation
+	if sprite.sprite_frames == null:
+		print("Warning: No SpriteFrames assigned to player sprite!")
 		use_sprites = false
 		return
 
-	if visual_node:
-		visual_node.visible = false
+	if not sprite.sprite_frames.has_animation("walk"):
+		print("Warning: No 'walk' animation found in player SpriteFrames!")
+		use_sprites = false
+		return
 
-	sprite = AnimatedSprite2D.new()
-	sprite.z_index = 1
-	sprite.centered = true
-	add_child(sprite)
-
-	var frames: SpriteFrames = SpriteFrames.new()
-	frames.add_animation("idle")
-	frames.set_animation_loop("idle", true)
-	frames.set_animation_speed("idle", 1.0)
-
-	var idle_texture: AtlasTexture = AtlasTexture.new()
-	idle_texture.atlas = sprite_sheet
-	idle_texture.region = Rect2i(Vector2i.ZERO, Vector2i(64, 64))
-	frames.add_frame("idle", idle_texture)
-
-	frames.add_animation("walk")
-	frames.set_animation_loop("walk", true)
-	frames.set_animation_speed("walk", 10.0)
-
-	for i in range(8):
-		var frame_region: Rect2i = Rect2i(i * 64, 0, 64, 64)
-		var frame_texture: AtlasTexture = AtlasTexture.new()
-		frame_texture.atlas = sprite_sheet
-		frame_texture.region = frame_region
-		frames.add_frame("walk", frame_texture)
-
-	sprite.sprite_frames = frames
+	# Sprite is already configured in scene, just set scale
 	sprite.scale = Vector2(1.3, 1.3)
 	sprite.play("idle")
 

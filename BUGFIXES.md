@@ -345,8 +345,333 @@ The audio system is fully implemented and integrated. You just need to add the `
 
 **Game is now fully playable with all requested features!**
 
+---
 
+## 🎨 Asset & Animation System Overhaul ✓
 
+### 13. **Transparenz & Sprite-Animationen komplett repariert**
+**Problem:**
+- Transparente Hintergründe wurden als weiße/farbige Kästen angezeigt
+- Player walk-Animation wurde nicht geladen
+- Enemy-Animationen fehlten komplett (alle fielen zurück auf ColorRect)
+- `_get_sprite_path_for_enemy()` Funktion existierte nicht
 
+**Root Causes:**
+1. **Import-Settings falsch**: `process/fix_alpha_border=true` verursachte Artefakte
+2. **player_hacker.tres** hatte nur "idle", keine "walk" Animation
+3. **Keine SpriteFrames für Drones**: Nur PNG-Spritesheets, keine .tres-Ressourcen
+4. **Code-Fehler**: `_get_sprite_path_for_enemy()` wurde aufgerufen aber nie definiert
+
+**Fixes:**
+
+#### Fix 1: Import-Settings korrigiert ✓
+Alle PNG-Assets auf korrekte Transparenz-Verarbeitung umgestellt:
+- `process/fix_alpha_border=false` (statt true)
+- Betrifft: player_walk_64x64_8f.png, player_hacker_64.png, alle drone_X_40x40_6f.png
+
+**Locations:**
+- `assets/anim/player_walk_64x64_8f.png.import`
+- `assets/sprites/player/player_hacker_64.png.import`
+- `assets/anim/drone_standard_40x40_6f.png.import`
+- `assets/anim/drone_fast_40x40_6f.png.import`
+- `assets/anim/drone_heavy_40x40_6f.png.import`
+- `assets/anim/drone_kamikaze_40x40_6f.png.import`
+- `assets/anim/drone_sniper_40x40_6f.png.import`
+
+#### Fix 2: Player Walk-Animation hinzugefügt ✓
+`player_hacker.tres` erweitert mit 8-Frame walk-Animation:
+```gdscript
+animations = [
+    {"name": "idle", ...},   # Existing
+    {"name": "walk", "frames": [8 frames @ 10 FPS], ...}  # NEW
+]
+```
+- Frames aus `player_walk_64x64_8f.png` extrahiert (8x 64x64 Sprites)
+- Animation-Speed: 10.0 FPS für flüssige Bewegung
+
+**Location:** `assets/sprites/player/player_hacker.tres`
+
+#### Fix 3: 5 Drone SpriteFrames erstellt ✓
+Neue .tres-Ressourcen für alle Enemy-Drone-Typen:
+- `drone_standard.tres` (8 FPS) - Standard red drone
+- `drone_fast.tres` (12 FPS) - Fast cyan drone
+- `drone_heavy.tres` (6 FPS) - Slow heavy drone
+- `drone_kamikaze.tres` (10 FPS) - Kamikaze with pulse
+- `drone_sniper.tres` (8 FPS) - Sniper drone
+
+Jede .tres enthält 6 Frames aus dem entsprechenden 240x40 Spritesheet:
+- Frame 0: Rect2(0, 0, 40, 40)
+- Frame 1: Rect2(40, 0, 40, 40)
+- ...
+- Frame 5: Rect2(200, 0, 40, 40)
+
+**Locations:** `assets/anim/*.tres` (5 neue Dateien)
+
+#### Fix 4: _get_sprite_path_for_enemy() implementiert ✓
+Funktion hinzugefügt in `enemy.gd` und `improved_enemy.gd`:
+```gdscript
+func _get_sprite_path_for_enemy() -> String:
+    if get_meta("is_kamikaze", false):
+        return "res://assets/anim/drone_kamikaze.tres"
+    elif get_meta("is_sniper", false):
+        return "res://assets/anim/drone_sniper.tres"
+    elif enemy_color.b > 0.9 and enemy_color.g > 0.7:  # Cyan
+        return "res://assets/anim/drone_fast.tres"
+    elif enemy_color.r > 0.5 and enemy_color.g > 0.2 and enemy_color.b < 0.3:  # Brown
+        return "res://assets/anim/drone_heavy.tres"
+    else:
+        return "res://assets/anim/drone_standard.tres"
+```
+
+**Locations:**
+- `scripts/enemy.gd` (Line 453-464)
+- `scripts/improved_enemy.gd` (Line 686-697)
+
+#### Fix 5: Player sprite loading vereinfacht ✓
+`player.gd:_setup_visual()` vereinfacht:
+- **VORHER**: Manuelles Erstellen von SpriteFrames, AtlasTextures für jeden Frame
+- **NACHHER**: Nutzt vorkonfigurierte SpriteFrames aus Player.tscn
+- Entfernt 50+ Zeilen redundanten Code
+- Fallback zu ColorRect wenn Sprite nicht gefunden
+
+**Location:** `scripts/player.gd` (Line 548-571)
+
+---
+
+### Erwartete Ergebnisse ✓
+
+**Transparenz:**
+✅ Keine weißen/farbigen Kästen mehr um Sprites
+✅ Alpha-Channel wird korrekt respektiert
+✅ Clean edges ohne Border-Artefakte
+
+**Animationen:**
+✅ Player hat smooth 8-Frame walk-Animation
+✅ Alle 5 Drone-Typen haben flüssige hover-Animationen
+✅ Unterschiedliche Animation-Speeds (6-12 FPS) je nach Drone-Typ
+✅ Kein Fallback zu ColorRect mehr (außer bei Fehlern)
+
+**Code-Qualität:**
+✅ Fehlende Funktion implementiert
+✅ Player sprite loading deutlich einfacher
+✅ Wartbarkeit verbessert (SpriteFrames in .tres-Files)
+
+---
+
+### Testing-Hinweise
+
+**Beim nächsten Godot-Start:**
+1. Assets werden automatisch mit neuen Import-Settings re-importiert
+2. Player walk-Animation sollte beim Bewegen sichtbar sein
+3. Alle Drone-Typen sollten animierte Sprites statt ColorRects zeigen
+4. Transparente Bereiche sollten durchsichtig sein
+
+**Validierung:**
+```bash
+# Script-Syntax prüfen (optional)
+godot --headless --path "." --script scripts/player.gd --check-only --quit-after 3
+godot --headless --path "." --script scripts/enemy.gd --check-only --quit-after 3
+```
+
+---
+
+**Files Modified:**
+1. `assets/anim/player_walk_64x64_8f.png.import` - Transparenz-Fix
+2. `assets/sprites/player/player_hacker_64.png.import` - Transparenz-Fix
+3. `assets/anim/drone_*.png.import` (5 files) - Transparenz-Fix
+4. `assets/sprites/player/player_hacker.tres` - Walk-Animation hinzugefügt
+5. `scripts/player.gd` - Sprite loading vereinfacht
+6. `scripts/enemy.gd` - _get_sprite_path_for_enemy() implementiert
+7. `scripts/improved_enemy.gd` - _get_sprite_path_for_enemy() implementiert
+
+**Files Created:**
+1. `assets/anim/drone_standard.tres` - Standard drone SpriteFrames
+2. `assets/anim/drone_fast.tres` - Fast drone SpriteFrames
+3. `assets/anim/drone_heavy.tres` - Heavy drone SpriteFrames
+4. `assets/anim/drone_kamikaze.tres` - Kamikaze drone SpriteFrames
+5. `assets/anim/drone_sniper.tres` - Sniper drone SpriteFrames
+
+**Total Lines Changed:** ~200+
+**Total New Files:** 5 SpriteFrames resources
+
+---
+
+## 🌈 Drone-Farben Optimierung für maximale Unterscheidbarkeit ✓
+
+### 14. **Drone-Farben stark verbessert - Hybrid-Ansatz**
+**Problem:**
+- Rot (Standard) vs. Orange (Kamikaze) schwer unterscheidbar
+- Braun (Heavy) zu dunkel auf dunklem Hintergrund
+- Grün (Sniper) vs. Cyan (Fast) konnten verwechselt werden
+- `enemy_color` überschrieb professionelle Asset-Farben
+- Farbzuordnung basierte auf fragiler Color-Comparison statt robustem Metadata
+
+**Root Causes:**
+1. **Code-Farben überlagerten Asset-Farben**: `enemy_color` Property überschrieb Sprite-Farben
+2. **Zu ähnliche Farbtöne**: Rot/Orange, Grün/Cyan schwer unterscheidbar
+3. **Fragile Sprite-Zuordnung**: `_get_sprite_path_for_enemy()` nutzte Color-Comparison (anfällig für Rundungsfehler)
+4. **Keine einheitliche Farb-Identifikation**: Verschiedene Systeme (enemy_color, modulate, sprite-farbe)
+
+**Lösung: Hybrid-Ansatz**
+
+Kombination aus Asset-Farben + leichtem Modulate für optimale Sichtbarkeit:
+
+#### Fix 1: enemy_color durch Modulate ersetzt ✓
+**VORHER** (game.gd):
+```gdscript
+enemy.enemy_color = Color(1.0, 0.2, 0.2)  # Überschreibt Sprite
+```
+
+**NACHHER**:
+```gdscript
+enemy.set_meta("drone_type", "standard")  # Explizite Type-ID
+enemy.modulate = Color(1.3, 0.9, 0.9)     # Verstärkt Rot im Asset
+```
+
+**Vorteil:** Asset-Farbe bleibt erhalten, wird nur leicht verstärkt
+
+**Locations:**
+- `scripts/game.gd:603` (_setup_standard_drone)
+- `scripts/game.gd:616` (_setup_fast_drone)
+- `scripts/game.gd:629` (_setup_heavy_drone)
+- `scripts/game.gd:642` (_setup_kamikaze_drone)
+- `scripts/game.gd:658` (_setup_sniper_drone)
+
+---
+
+#### Fix 2: Optimierte Modulate-Werte für maximalen Kontrast ✓
+
+**Neue Farbpalette:**
+
+| Drone-Typ | Asset-Farbe | Modulate | Resultierende Farbe | Kontrast |
+|-----------|-------------|----------|---------------------|----------|
+| **Standard** | Rot | `Color(1.3, 0.9, 0.9)` | **Helles Rot** | ⭐⭐⭐⭐⭐ |
+| **Fast** | Cyan | `Color(0.9, 1.3, 1.4)` | **Leuchtendes Cyan** | ⭐⭐⭐⭐⭐ |
+| **Heavy** | Dunkelbraun | `Color(1.6, 1.4, 1.3)` | **Helles Grau-Braun** | ⭐⭐⭐⭐ |
+| **Kamikaze** | Orange | `Color(1.5, 1.1, 1.4)` | **Orange-Pink** | ⭐⭐⭐⭐⭐ |
+| **Sniper** | Grün | `Color(1.1, 1.5, 1.1)` | **Leuchtgrün** | ⭐⭐⭐⭐⭐ |
+
+**Kontrast-Verbesserungen:**
+- ✅ **Rot vs. Orange-Pink**: Pink-Ton macht deutlichen Unterschied
+- ✅ **Cyan vs. Leuchtgrün**: Blau vs. Gelbgrün klar unterscheidbar
+- ✅ **Heavy aufgehellt**: Von dunkelbraun zu hellem grau-braun → deutlich sichtbarer
+- ✅ **Alle Farben heller**: Bessere Sichtbarkeit auf dunklem Hintergrund
+
+---
+
+#### Fix 3: Metadata-basierte Sprite-Zuordnung ✓
+
+**VORHER** (anfällig für Fehler):
+```gdscript
+func _get_sprite_path_for_enemy() -> String:
+    if enemy_color.b > 0.9 and enemy_color.g > 0.7:  # Cyan?
+        return "res://assets/anim/drone_fast.tres"
+    elif enemy_color.r > 0.5 and enemy_color.g > 0.2:  # Brown?
+        return "res://assets/anim/drone_heavy.tres"
+    # ... Probleme bei Fließkomma-Rundung!
+```
+
+**NACHHER** (robust & explizit):
+```gdscript
+func _get_sprite_path_for_enemy() -> String:
+    var drone_type = get_meta("drone_type", "standard")
+
+    match drone_type:
+        "kamikaze": return "res://assets/anim/drone_kamikaze.tres"
+        "sniper": return "res://assets/anim/drone_sniper.tres"
+        "fast": return "res://assets/anim/drone_fast.tres"
+        "heavy": return "res://assets/anim/drone_heavy.tres"
+        _: return "res://assets/anim/drone_standard.tres"
+```
+
+**Vorteile:**
+- ✅ **Keine Fließkomma-Vergleiche** mehr
+- ✅ **Explizite Type-Identifikation** via Metadata
+- ✅ **Match-Statement** für bessere Performance
+- ✅ **Wartbarer Code** - keine Magic Numbers
+
+**Locations:**
+- `scripts/enemy.gd:453-467`
+- `scripts/improved_enemy.gd:686-700`
+
+---
+
+#### Fix 4: drone_type Metadata für alle Typen ✓
+
+Jede Setup-Funktion setzt jetzt explizit:
+```gdscript
+enemy.set_meta("drone_type", "kamikaze")  // Explizite Typ-ID
+enemy.set_meta("is_kamikaze", true)       // Behavior-Flag (bleibt erhalten)
+```
+
+**Hierarchie:**
+- `drone_type`: **Visuelle Identität** (welches Sprite?)
+- `is_kamikaze/is_sniper`: **Behavior-Flags** (welches Verhalten?)
+
+**Locations:** Alle 5 Setup-Funktionen in game.gd
+
+---
+
+### Erwartete Ergebnisse ✓
+
+**Visuelle Unterscheidbarkeit:**
+- ✅ **5 deutlich unterschiedliche Farben** im Kampf erkennbar
+- ✅ **Keine Verwechslungsgefahr** mehr zwischen Typen
+- ✅ **Bessere Sichtbarkeit** auf allen Hintergründen
+- ✅ **Asset-Qualität erhalten** (professionelle Sprites genutzt)
+
+**Code-Qualität:**
+- ✅ **Robuste Sprite-Zuordnung** (Metadata statt Color-Comparison)
+- ✅ **Wartbarer Code** (match-Statement, keine Magic Numbers)
+- ✅ **Konsistentes System** (ein Metadata-System für alle)
+- ✅ **Performance** (Match ist schneller als If-Else-Ketten)
+
+**Gameplay-Impact:**
+- ✅ Spieler kann **Drone-Typen sofort erkennen**
+- ✅ **Schnellere Reaktionszeit** im Kampf
+- ✅ **Bessere strategische Entscheidungen** (Prioritäten setzen)
+- ✅ **Professionellerer Look** durch native Asset-Farben
+
+---
+
+### Farbpalette zum Nachschlagen
+
+**Standard Drone (Rot):**
+- Asset: Rote X-Form
+- Modulate: `(1.3, 0.9, 0.9)` → Helles Rot
+- Verhalten: Balanced, verfolgt Spieler
+
+**Fast Drone (Cyan):**
+- Asset: Cyan Pfeil-Form
+- Modulate: `(0.9, 1.3, 1.4)` → Leuchtendes Cyan
+- Verhalten: Schnell, wenig HP
+
+**Heavy Drone (Grau-Braun):**
+- Asset: Dunkelbraun Quadrat
+- Modulate: `(1.6, 1.4, 1.3)` → Helles Grau-Braun
+- Verhalten: Langsam, viel HP, schießt Projektile
+
+**Kamikaze Drone (Orange-Pink):**
+- Asset: Orange Quadrat mit Warnsymbol
+- Modulate: `(1.5, 1.1, 1.4)` → Orange mit Pink-Ton
+- Verhalten: Explodiert bei Kontakt, pulsiert
+
+**Sniper Drone (Leuchtgrün):**
+- Asset: Grün mit Fadenkreuz
+- Modulate: `(1.1, 1.5, 1.1)` → Helles Lime-Grün
+- Verhalten: Hält Distanz, Laser-Angriff
+
+---
+
+**Files Modified:**
+1. `scripts/game.gd` - 5 Setup-Funktionen (Lines 601-668)
+2. `scripts/enemy.gd` - `_get_sprite_path_for_enemy()` (Lines 453-467)
+3. `scripts/improved_enemy.gd` - `_get_sprite_path_for_enemy()` (Lines 686-700)
+
+**Lines Changed:** ~60
+
+**Testing:** Godot öffnen, alle 5 Drone-Typen spawnen, Farbunterschiede visuell prüfen
+
+---
 
 

@@ -1,0 +1,53 @@
+[gd_resource type="SpriteFrames" load_steps=8 format=3]
+
+[ext_resource type="Texture2D" path="res://assets/anim/drone_kamikaze_40x40_6f.png" id="1"]
+
+[sub_resource type="AtlasTexture" id="hover_0"]
+atlas = ExtResource("1")
+region = Rect2(0, 0, 40, 40)
+
+[sub_resource type="AtlasTexture" id="hover_1"]
+atlas = ExtResource("1")
+region = Rect2(40, 0, 40, 40)
+
+[sub_resource type="AtlasTexture" id="hover_2"]
+atlas = ExtResource("1")
+region = Rect2(80, 0, 40, 40)
+
+[sub_resource type="AtlasTexture" id="hover_3"]
+atlas = ExtResource("1")
+region = Rect2(120, 0, 40, 40)
+
+[sub_resource type="AtlasTexture" id="hover_4"]
+atlas = ExtResource("1")
+region = Rect2(160, 0, 40, 40)
+
+[sub_resource type="AtlasTexture" id="hover_5"]
+atlas = ExtResource("1")
+region = Rect2(200, 0, 40, 40)
+
+[resource]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("hover_0")
+}, {
+"duration": 1.0,
+"texture": SubResource("hover_1")
+}, {
+"duration": 1.0,
+"texture": SubResource("hover_2")
+}, {
+"duration": 1.0,
+"texture": SubResource("hover_3")
+}, {
+"duration": 1.0,
+"texture": SubResource("hover_4")
+}, {
+"duration": 1.0,
+"texture": SubResource("hover_5")
+}],
+"loop": true,
+"name": &"hover",
+"speed": 10.0
+}]

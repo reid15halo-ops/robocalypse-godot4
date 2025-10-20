@@ -32,6 +32,10 @@ shape = SubResource("2_boundary_vertical")
 position = Vector2(1824, 896)
 shape = SubResource("2_boundary_vertical")
 
+[node name="NavigationRegion2D" type="NavigationRegion2D" parent="."]
+z_index = -10
+cell_size = 16.0
+
 [node name="UI" type="CanvasLayer" parent="."]
 
 [node name="HealthBar" type="ProgressBar" parent="UI"]

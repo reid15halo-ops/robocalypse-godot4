@@ -6,10 +6,12 @@ var boss_scene = preload("res://scenes/BossEnemy.tscn")
 var drone_scene = preload("res://scenes/SupportDrone.tscn")
 var scrap_pickup_scene = preload("res://scenes/ScrapPickup.tscn")
 var player_scene: PackedScene = preload("res://scenes/Player.tscn")
+var spawn_beacon_scene = preload("res://scenes/SpawnBeacon.tscn")
 
 # Spawning
 @export var spawn_interval: float = 2.0
 @export var spawn_distance: float = 700.0
+const SPAWN_SAFETY_BUFFER: float = 100.0 # Extra distance from screen edge
 var spawn_timer: float = 0.0
 
 # Wave system
@@ -45,6 +47,9 @@ var player: CharacterBody2D = null
 @onready var ui = $UI
 @onready var health_bar = $UI/HealthBar
 @onready var shield_bar = $UI/ShieldBar
+var health_value_label: Label = null
+var shield_value_label: Label = null
+const UI_STRINGS := preload("res://scripts/UIStrings.gd")
 @onready var score_label = $UI/ScoreLabel
 @onready var wave_label = $UI/WaveLabel
 @onready var wave_timer_label = $UI/WaveTimerLabel
@@ -97,10 +102,17 @@ func _ready() -> void:
 		GameManager.set_player(player)
 
 	# Generate procedural map
-	map_generator = preload("res://scripts/MapGenerator.gd").new()
+	map_generator = preload("res://scripts/CityLayoutGenerator.gd").new()
 	map_generator.name = "MapGenerator"
 	add_child(map_generator)
-	map_generator.generate_map()
+	var map_data = map_generator.generate_map()
+
+	# Bake navigation mesh
+	var nav_region = $NavigationRegion2D
+	if nav_region:
+		map_generator.bake_navigation_mesh(nav_region)
+	else:
+		push_warning("Game: NavigationRegion2D node not found. Skipping navmesh baking.")
 
 	# Container for scrap pickups
 	scrap_container = Node2D.new()
@@ -109,7 +121,7 @@ func _ready() -> void:
 
 	# Position player at center spawn
 	if player:
-		player.global_position = map_generator.get_spawn_position()
+		player.global_position = map_data.player_spawn_position
 
 	# Initialize Affix Manager
 	affix_manager = preload("res://scripts/AffixManager.gd").new()
@@ -515,84 +527,161 @@ func _spawn_drone(drone_type_name: String) -> void:
 
 
 func spawn_enemy() -> void:
-	"""Spawn an enemy at a fixed street spawn point"""
-	var enemy = _create_random_enemy_type()
-
-	# Get random spawn point on streets (fixed positions)
+	"""Spawn an enemy at a valid, strategic spawn point."""
 	var spawn_points = _get_street_spawn_points()
-	if spawn_points.size() > 0:
-		var spawn_pos = spawn_points[randi() % spawn_points.size()]
-		enemy.global_position = spawn_pos
-	else:
-		# Fallback to old random spawning if no spawn points available
-		var angle = randf() * TAU
-		var spawn_pos = player.global_position + Vector2(cos(angle), sin(angle)) * spawn_distance
-		enemy.global_position = spawn_pos
+	if spawn_points.is_empty():
+		push_warning("Game: No spawn points available. Cannot spawn enemy.")
+		return
+
+	# Neue Logik: Finde den besten Spawnpunkt
+	var spawn_pos = _select_best_spawn_point(spawn_points)
+	if spawn_pos == Vector2.INF:
+		# Fallback, wenn kein idealer Punkt gefunden wird (z.B. alle sichtbar)
+		spawn_pos = spawn_points.pick_random()
+		print("Game: No ideal spawn point found, using random fallback.")
+
+	var enemy_type = _determine_enemy_type()
+	_spawn_beacon(spawn_pos, enemy_type, false)
+
+
+func _is_valid_spawn_point(pos: Vector2) -> bool:
+	"""
+	Prüft, ob ein Spawnpunkt gültig ist.
+	- Nicht im Sichtfeld des Spielers (mit Puffer).
+	- Es existiert ein Navigationspfad zum Spieler.
+	- Nicht zu nah an anderen Gegnern.
+	"""
+	if not player: return false
+
+	# 1. Sichtfeld-Prüfung (außerhalb des Bildschirms + Puffer)
+	var camera = get_viewport().get_camera_2d()
+	if not camera: return false # Failsafe
+	
+	var screen_rect = get_viewport().get_visible_rect()
+	var buffered_rect = screen_rect.grow(SPAWN_SAFETY_BUFFER)
+	var point_in_camera_space = pos - camera.get_screen_center_position() + screen_rect.size / 2
+	
+	if buffered_rect.has_point(point_in_camera_space):
+		return false
+
+	# 2. Navigationspfad-Prüfung
+	var nav_map = get_world_2d().navigation_map
+	var path = NavigationServer2D.map_get_path(nav_map, pos, player.global_position, true)
+	if path.is_empty() or path.size() < 2:
+		return false # Kein Pfad oder nur Startpunkt
+
+	# 3. Mindestabstand zu anderen Gegnern
+	for enemy in active_enemies:
+		if is_instance_valid(enemy) and pos.distance_to(enemy.global_position) < 80.0: # 80px Mindestabstand
+			return false
+
+	return true
+
+
+func _select_best_spawn_point(points: Array[Vector2]) -> Vector2:
+	"""Wählt den besten Spawnpunkt aus einer Liste von Kandidaten."""
+	if points.is_empty():
+		push_warning("Game: _select_best_spawn_point called with empty points array.")
+		return Vector2.INF
+
+	var valid_points = points.filter(_is_valid_spawn_point)
+	if valid_points.is_empty():
+		# HOTFIX FALLBACK: No ideal point found, return a random point from the original list
+		# This prevents the game from stalling if all points are visible.
+		print("Game: No valid spawn points found, using random fallback from original list.")
+		return points.pick_random()
+
+	# Bewerte die gültigen Punkte
+	var best_point = Vector2.INF
+	var max_score = -1.0
+
+	for point in valid_points:
+		var score = 0.0
+		var dist_to_player = point.distance_to(player.global_position)
+
+		# Bevorzuge Punkte hinter dem Spieler
+		var to_point = (point - player.global_position).normalized()
+		var player_facing_dir = Vector2.RIGHT.rotated(player.rotation)
+		var dot = to_point.dot(player_facing_dir)
+		if dot < -0.5: # Punkt ist mehr oder weniger hinter dem Spieler
+			score += 50.0
+
+		# Bevorzuge größere Distanz (innerhalb der Aggro-Range)
+		score += clamp(dist_to_player / spawn_distance, 0.0, 1.0) * 100.0
+
+		if score > max_score:
+			max_score = score
+			best_point = point
+			
+	return best_point
 
 
 func _get_street_spawn_points() -> Array[Vector2]:
 	"""Get list of fixed spawn points on the generated streets"""
 	if map_generator and map_generator.has_method("get_spawn_points"):
-		var generated: Array[Vector2] = map_generator.get_spawn_points()
-		if generated.size() > 0:
-			return generated
+		var map_data = map_generator.get_map_data()
+		if map_data and not map_data.spawn_points.is_empty():
+			return map_data.spawn_points
 
-	# Fallback: compute default cross-street points
-	var points: Array[Vector2] = []
-	const CELL_SIZE = 128
-	const GRID_WIDTH = 14
-	const GRID_HEIGHT = 14
-
-	for street_col in [4, 5, 9, 10]:
-		for y in range(GRID_HEIGHT):
-			if y not in [4, 5, 9, 10]:
-				points.append(Vector2((street_col + 0.5) * CELL_SIZE, (y + 0.5) * CELL_SIZE))
-
-	for street_row in [4, 5, 9, 10]:
-		for x in range(GRID_WIDTH):
-			if x not in [4, 5, 9, 10]:
-				points.append(Vector2((x + 0.5) * CELL_SIZE, (street_row + 0.5) * CELL_SIZE))
-
-	return points
+	# Fallback (sollte nicht mehr nötig sein)
+	push_warning("Game: Could not retrieve spawn points from CityLayoutGenerator.")
+	return []
 
 
-func _create_random_enemy_type() -> CharacterBody2D:
-	"""Create a random enemy type based on current wave"""
-	var enemy = _get_pooled_enemy()
 
-	# Wave-based spawn chances
+func _determine_enemy_type() -> String:
+	"""Determine which enemy type to spawn based on current wave"""
 	var wave = current_wave
 	var roll = randf()
 
 	# Early waves (1-5): Mostly standard, some fast
 	if wave <= 5:
 		if roll < 0.7:
-			_setup_standard_drone(enemy)
+			return "standard"
 		else:
-			_setup_fast_drone(enemy)
+			return "fast"
 
 	# Mid waves (6-15): Mixed with heavies
 	elif wave <= 15:
 		if roll < 0.4:
-			_setup_standard_drone(enemy)
+			return "standard"
 		elif roll < 0.7:
-			_setup_fast_drone(enemy)
+			return "fast"
 		elif roll < 0.9:
-			_setup_heavy_drone(enemy)
+			return "heavy"
 		else:
-			_setup_kamikaze_drone(enemy)
+			return "kamikaze"
 
 	# Late waves (16+): All types, more dangerous
 	else:
 		if roll < 0.25:
-			_setup_standard_drone(enemy)
+			return "standard"
 		elif roll < 0.45:
-			_setup_fast_drone(enemy)
+			return "fast"
 		elif roll < 0.65:
-			_setup_heavy_drone(enemy)
+			return "heavy"
 		elif roll < 0.85:
-			_setup_kamikaze_drone(enemy)
+			return "kamikaze"
 		else:
+			return "sniper"
+
+
+func _create_random_enemy_type() -> CharacterBody2D:
+	"""Create a random enemy type based on current wave"""
+	var enemy = _get_pooled_enemy()
+	var enemy_type = _determine_enemy_type()
+
+	# Setup enemy based on type
+	match enemy_type:
+		"standard":
+			_setup_standard_drone(enemy)
+		"fast":
+			_setup_fast_drone(enemy)
+		"heavy":
+			_setup_heavy_drone(enemy)
+		"kamikaze":
+			_setup_kamikaze_drone(enemy)
+		"sniper":
 			_setup_sniper_drone(enemy)
 
 	return enemy
@@ -600,7 +689,8 @@ func _create_random_enemy_type() -> CharacterBody2D:
 
 func _setup_standard_drone(enemy: CharacterBody2D) -> void:
 	"""Standard red drone - balanced"""
-	enemy.enemy_color = Color(1.0, 0.2, 0.2)  # Red
+	enemy.set_meta("drone_type", "standard")
+	enemy.modulate = Color(1.3, 0.9, 0.9)  # Bright red (enhances red asset)
 	enemy.enemy_size = 1.0
 	enemy.max_health = 100
 	enemy.min_speed = 100.0
@@ -612,7 +702,8 @@ func _setup_standard_drone(enemy: CharacterBody2D) -> void:
 
 func _setup_fast_drone(enemy: CharacterBody2D) -> void:
 	"""Fast cyan drone - quick and fragile"""
-	enemy.enemy_color = Color(0.2, 0.8, 1.0)  # Cyan
+	enemy.set_meta("drone_type", "fast")
+	enemy.modulate = Color(0.9, 1.3, 1.4)  # Bright cyan (enhances cyan asset)
 	enemy.enemy_size = 0.7
 	enemy.max_health = 60
 	enemy.min_speed = 200.0
@@ -624,7 +715,8 @@ func _setup_fast_drone(enemy: CharacterBody2D) -> void:
 
 func _setup_heavy_drone(enemy: CharacterBody2D) -> void:
 	"""Heavy brown drone - slow and tanky"""
-	enemy.enemy_color = Color(0.6, 0.3, 0.2)  # Brown
+	enemy.set_meta("drone_type", "heavy")
+	enemy.modulate = Color(1.6, 1.4, 1.3)  # Lighter gray-brown (improves visibility)
 	enemy.enemy_size = 1.5
 	enemy.max_health = 300
 	enemy.min_speed = 60.0
@@ -636,7 +728,8 @@ func _setup_heavy_drone(enemy: CharacterBody2D) -> void:
 
 func _setup_kamikaze_drone(enemy: CharacterBody2D) -> void:
 	"""Kamikaze orange drone - explodes on contact"""
-	enemy.enemy_color = Color(1.0, 0.6, 0.0)  # Orange
+	enemy.set_meta("drone_type", "kamikaze")
+	enemy.modulate = Color(1.5, 1.1, 1.4)  # Orange-pink tint (distinct from red)
 	enemy.enemy_size = 0.8
 	enemy.max_health = 40
 	enemy.min_speed = 180.0
@@ -651,7 +744,8 @@ func _setup_kamikaze_drone(enemy: CharacterBody2D) -> void:
 
 func _setup_sniper_drone(enemy: CharacterBody2D) -> void:
 	"""Sniper green drone - keeps distance"""
-	enemy.enemy_color = Color(0.2, 0.8, 0.3)  # Green
+	enemy.set_meta("drone_type", "sniper")
+	enemy.modulate = Color(1.1, 1.5, 1.1)  # Bright lime green (distinct from cyan)
 	enemy.enemy_size = 1.0
 	enemy.max_health = 80
 	enemy.min_speed = 90.0
@@ -673,19 +767,52 @@ func spawn_enemy_at_position(pos: Vector2) -> void:
 
 
 func _spawn_boss() -> void:
-	"""Spawn a boss enemy"""
-	var boss = boss_scene.instantiate()
+	"""Spawn a boss enemy with 5-second beacon warning"""
+	# Boss spawns at center of map
+	var spawn_pos = Vector2(896, 896)  # Center of 14x14 grid with 128px cells
 
-	# Random angle around the player, further away than regular enemies
-	var angle = randf() * TAU
-	var spawn_pos = player.global_position + Vector2(cos(angle), sin(angle)) * (spawn_distance + 200)
+	# Spawn beacon with boss flag (5 seconds instead of 2.5)
+	_spawn_beacon(spawn_pos, "boss", true)
 
-	boss.global_position = spawn_pos
-	add_child(boss)
-	print("Boss spawned for wave ", current_wave)
 
-	# Play boss spawn sound
-	AudioManager.play_boss_rage_sound()  # "Was ist geschehen?"
+func _spawn_beacon(pos: Vector2, enemy_type: String, is_boss: bool = false) -> void:
+	"""Spawn a beacon indicator at the given position"""
+	var beacon = spawn_beacon_scene.instantiate()
+	beacon.global_position = pos
+	beacon.is_boss_beacon = is_boss
+	beacon.spawn_ready.connect(_on_beacon_spawn_ready.bind(pos, enemy_type, is_boss))
+	add_child(beacon)
+
+
+func _on_beacon_spawn_ready(pos: Vector2, enemy_type: String, is_boss: bool) -> void:
+	"""Called when beacon finishes its warning animation and enemy should spawn"""
+	if is_boss:
+		# Spawn actual boss
+		var boss = boss_scene.instantiate()
+		boss.global_position = pos
+		add_child(boss)
+		print("Boss spawned for wave ", current_wave)
+
+		# Play boss spawn sound
+		AudioManager.play_boss_rage_sound()  # "Was ist geschehen?"
+	else:
+		# Spawn normal enemy
+		var enemy = _get_pooled_enemy()
+
+		# Setup enemy based on type
+		match enemy_type:
+			"standard":
+				_setup_standard_drone(enemy)
+			"fast":
+				_setup_fast_drone(enemy)
+			"heavy":
+				_setup_heavy_drone(enemy)
+			"kamikaze":
+				_setup_kamikaze_drone(enemy)
+			"sniper":
+				_setup_sniper_drone(enemy)
+
+		enemy.global_position = pos
 
 
 func _on_score_changed(_new_score: int) -> void:
@@ -720,27 +847,34 @@ func _on_game_over() -> void:
 
 
 func _update_health_bar() -> void:
-	"""Update health bar display"""
-	if player and health_bar:
-		health_bar.max_value = player.max_health
-		health_bar.value = player.current_health
+    """Update health bar display"""
+    if player and health_bar:
+        health_bar.max_value = player.max_health
+        health_bar.value = player.current_health
+        _ensure_health_value_label()
+        if health_value_label:
+            health_value_label.text = UI_STRINGS.hud_hp(int(player.current_health), int(player.max_health))
 
-	_update_shield_bar()
+    _update_shield_bar()
 
 
 func _update_shield_bar() -> void:
-	if not shield_bar or not player:
-		return
+    if not shield_bar or not player:
+        return
 
-	shield_bar.max_value = player.max_health
-	shield_bar.value = clamp(float(player.shield_hp), 0.0, float(player.max_health))
-	shield_bar.visible = shield_bar.value > 0.0
+    shield_bar.max_value = player.max_health
+    shield_bar.value = clamp(float(player.shield_hp), 0.0, float(player.max_health))
+    shield_bar.visible = shield_bar.value > 0.0
+    _ensure_shield_value_label()
+    if shield_value_label:
+        shield_value_label.visible = shield_bar.visible
+        shield_value_label.text = UI_STRINGS.hud_shield(int(player.shield_hp))
 
 
 func _configure_health_and_shield_bars() -> void:
-	if health_bar:
-		var health_fg := StyleBoxFlat.new()
-		health_fg.bg_color = Color(0.75, 0.15, 0.15, 0.95)
+    if health_bar:
+        var health_fg := StyleBoxFlat.new()
+        health_fg.bg_color = Color(0.75, 0.15, 0.15, 0.95)
 		health_fg.corner_radius_top_left = 6
 		health_fg.corner_radius_top_right = 6
 		health_fg.corner_radius_bottom_left = 6
@@ -755,12 +889,13 @@ func _configure_health_and_shield_bars() -> void:
 		health_bg.corner_radius_top_right = 6
 		health_bg.corner_radius_bottom_left = 6
 		health_bg.corner_radius_bottom_right = 6
-		health_bar.add_theme_stylebox_override("bg", health_bg)
-		health_bar.show_percentage = false
+        health_bar.add_theme_stylebox_override("bg", health_bg)
+        health_bar.show_percentage = false
+        _ensure_health_value_label()
 
-	if shield_bar:
-		var shield_fg := StyleBoxFlat.new()
-		shield_fg.bg_color = Color(0.25, 0.7, 1.0, 0.85)
+    if shield_bar:
+        var shield_fg := StyleBoxFlat.new()
+        shield_fg.bg_color = Color(0.25, 0.7, 1.0, 0.85)
 		shield_fg.corner_radius_top_left = 6
 		shield_fg.corner_radius_top_right = 6
 		shield_fg.corner_radius_bottom_left = 6
@@ -777,29 +912,67 @@ func _configure_health_and_shield_bars() -> void:
 		shield_bg.corner_radius_bottom_right = 6
 		shield_bar.add_theme_stylebox_override("bg", shield_bg)
 
-		shield_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		shield_bar.show_percentage = false
-		shield_bar.visible = false
-		if player:
-			shield_bar.max_value = player.max_health
-		shield_bar.value = 0
-		if health_bar:
-			shield_bar.z_index = health_bar.z_index + 1
-		else:
-			shield_bar.z_index = 1
-		shield_bar.move_to_front()
+        shield_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+        shield_bar.show_percentage = false
+        shield_bar.visible = false
+        if player:
+            shield_bar.max_value = player.max_health
+        shield_bar.value = 0
+        if health_bar:
+            shield_bar.z_index = health_bar.z_index + 1
+        else:
+            shield_bar.z_index = 1
+        shield_bar.move_to_front()
 
-		if health_bar:
-			shield_bar.offset_left = health_bar.offset_left
-			shield_bar.offset_right = health_bar.offset_right
-			shield_bar.offset_top = health_bar.offset_top
-			shield_bar.offset_bottom = health_bar.offset_bottom
+        if health_bar:
+            shield_bar.offset_left = health_bar.offset_left
+            shield_bar.offset_right = health_bar.offset_right
+            shield_bar.offset_top = health_bar.offset_top
+            shield_bar.offset_bottom = health_bar.offset_bottom
 
-	_update_shield_bar()
+        _update_shield_bar()
+        _ensure_shield_value_label()
 
 
 func _on_player_shield_changed(_new_value: int) -> void:
-	_update_shield_bar()
+    _update_shield_bar()
+
+# Ensure a centered label on the health bar showing absolute HP
+func _ensure_health_value_label() -> void:
+    if health_bar == null:
+        return
+    if health_value_label and is_instance_valid(health_value_label):
+        return
+    var label := Label.new()
+    label.name = "HealthValueLabel"
+    label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+    label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+    label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    label.size_flags_vertical = Control.SIZE_EXPAND_FILL
+    label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+    health_bar.add_child(label)
+    label.anchors_preset = Control.PRESET_FULL_RECT
+    label.z_index = (health_bar.z_index if health_bar else 0) + 2
+    health_value_label = label
+
+# Ensure a centered label on the shield bar showing shield amount
+func _ensure_shield_value_label() -> void:
+    if shield_bar == null:
+        return
+    if shield_value_label and is_instance_valid(shield_value_label):
+        return
+    var label := Label.new()
+    label.name = "ShieldValueLabel"
+    label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+    label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+    label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    label.size_flags_vertical = Control.SIZE_EXPAND_FILL
+    label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+    label.add_theme_color_override("font_color", Color(0.85, 0.95, 1.0, 0.95))
+    shield_bar.add_child(label)
+    label.anchors_preset = Control.PRESET_FULL_RECT
+    label.z_index = (shield_bar.z_index if shield_bar else 0) + 2
+    shield_value_label = label
 
 
 func _update_score_label() -> void:

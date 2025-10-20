@@ -43,7 +43,8 @@
       "Bash(cmd /c del:*)",
       "Bash(cmd /c rmdir:*)",
       "Bash(\"C:\\Users\\reid1\\Documents\\Godot_v4.5-stable_win64.exe\" --path \"C:\\Users\\reid1\\Documents\\Roboclaust\" --headless --quit-after 5)",
-      "Bash(\"C:\\Users\\reid1\\Documents\\Godot_v4.5-stable_win64_console.exe\" --headless --path \"C:\\Users\\reid1\\Documents\\Roboclaust\" --script scripts/MinibossSpawner.gd --check-only --quit-after 3)"
+      "Bash(\"C:\\Users\\reid1\\Documents\\Godot_v4.5-stable_win64_console.exe\" --headless --path \"C:\\Users\\reid1\\Documents\\Roboclaust\" --script scripts/MinibossSpawner.gd --check-only --quit-after 3)",
+      "Read(//c/Users/122798/**)"
     ],
     "deny": [],
     "ask": []
