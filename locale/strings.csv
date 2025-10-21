@@ -1,0 +1,24 @@
+key,en,de,es
+HP,HP,LP,PV
+SHIELD,Shield,Schild,Escudo
+SCORE,Score,Punkte,Puntuación
+WAVE,Wave,Welle,Oleada
+WAVE_FMT,Wave {n},Welle {n},Oleada {n}
+TIME,Time,Zeit,Tiempo
+TIME_FMT,Time: {t}s,Zeit: {t}s,Tiempo: {t}s
+SCRAP,Scrap,Schrott,Chatarra
+PAUSE,Pause,Pause,Pausa
+RESUME,Resume,Fortsetzen,Reanudar
+GAME_OVER,Game Over,Spielende,Fin del juego
+FINAL_SCORE,Final Score,Endpunktzahl,Puntuación Final
+FINAL_SCORE_FMT,Final Score: {score},Endpunktzahl: {score},Puntuación Final: {score}
+ROUTE_SELECTION,Select Route,Route wählen,Seleccionar ruta
+PRESS_ANY_KEY,Press any key,Taste drücken,Presiona cualquier tecla
+HP_LOW,HP Low!,LP niedrig!,¡PV Bajo!
+SHIELD_BROKEN,Shield Broken!,Schild zerstört!,¡Escudo roto!
+LEVEL,Level,Stufe,Nivel
+LEVEL_FMT,Level: {n},Stufe: {n},Nivel: {n}
+XP,XP,EP,EXP
+XP_FMT,XP: {current}/{needed},EP: {current}/{needed},EXP: {current}/{needed}
+CONTROLLING_DRONE,[CONTROLLING DRONE],[DROHNE STEUERN],[CONTROLANDO DRON]
+PRESS_E_CONTROL,[Press E to Control],[E zum Steuern],[Presiona E para controlar]

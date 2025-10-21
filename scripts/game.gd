@@ -281,6 +281,12 @@ func _return_enemy_to_pool(enemy: CharacterBody2D) -> void:
 
 
 func _process(delta: float) -> void:
+	# Check for language cycle (debug feature)
+	if Input.is_action_just_pressed("cycle_language"):
+		LanguageManager.cycle_language()
+		_refresh_ui_labels()
+		return
+
 	# Check for pause input
 	if Input.is_action_just_pressed("pause") and not GameManager.is_game_over and not in_wave_break:
 		GameManager.toggle_pause()
@@ -832,7 +838,7 @@ func _on_game_over() -> void:
 	_set_enemies_frozen(false)
 
 	game_over_screen.visible = true
-	$UI/GameOverScreen/VBoxContainer/FinalScoreLabel.text = "Final Score: " + str(GameManager.score)
+	$UI/GameOverScreen/VBoxContainer/FinalScoreLabel.text = tr(UIStrings.FINAL_SCORE_FMT).format({"score": GameManager.score})
 
 	# Play game over sound
 	AudioManager.play_game_over_sound()  # Windows Shutdown
@@ -978,26 +984,26 @@ func _ensure_shield_value_label() -> void:
 func _update_score_label() -> void:
 	"""Update score label display"""
 	if score_label:
-		score_label.text = "Score: " + str(GameManager.score)
+		score_label.text = tr(UIStrings.SCORE) + ": " + str(GameManager.score)
 
 
 func _update_wave_label() -> void:
 	"""Update wave label display"""
 	if wave_label:
-		wave_label.text = "Wave: " + str(current_wave)
+		wave_label.text = tr(UIStrings.WAVE_FMT).format({"n": current_wave})
 
 
 func _update_wave_timer() -> void:
 	"""Update wave timer display"""
 	if wave_timer_label:
 		var time_remaining = int(wave_duration - wave_timer)
-		wave_timer_label.text = "Time: " + str(max(0, time_remaining)) + "s"
+		wave_timer_label.text = tr(UIStrings.TIME_FMT).format({"t": max(0, time_remaining)})
 
 
 func _update_scrap_label() -> void:
 	"""Update scrap display"""
 	if scrap_label:
-		scrap_label.text = "Scrap: " + str(scrap_earned_this_run)
+		scrap_label.text = tr(UIStrings.SCRAP) + ": " + str(scrap_earned_this_run)
 
 
 func _on_resume_pressed() -> void:
@@ -1114,22 +1120,32 @@ func _update_drone_ui() -> void:
 
 	if drone_stats.exists:
 		drone_panel.visible = true
-		drone_level_label.text = "Level: " + str(drone_stats.level)
+		drone_level_label.text = tr(UIStrings.LEVEL_FMT).format({"n": drone_stats.level})
 		drone_health_bar.max_value = drone_stats.max_hp
 		drone_health_bar.value = drone_stats.hp
 		drone_xp_bar.max_value = drone_stats.xp_needed
 		drone_xp_bar.value = drone_stats.xp
-		drone_xp_label.text = "XP: " + str(drone_stats.xp) + "/" + str(drone_stats.xp_needed)
+		drone_xp_label.text = tr(UIStrings.XP_FMT).format({"current": drone_stats.xp, "needed": drone_stats.xp_needed})
 
 		# Update mode label
 		if drone_controller.is_drone_mode:
-			mode_label.text = "[CONTROLLING DRONE]"
+			mode_label.text = tr(UIStrings.CONTROLLING_DRONE)
 			mode_label.add_theme_color_override("font_color", Color(0, 1, 1))
 		else:
-			mode_label.text = "[Press E to Control]"
+			mode_label.text = tr(UIStrings.PRESS_E_CONTROL)
 			mode_label.add_theme_color_override("font_color", Color(1, 1, 1))
 	else:
 		drone_panel.visible = false
+
+
+func _refresh_ui_labels() -> void:
+	"""Refresh all UI labels after language change"""
+	_update_score_label()
+	_update_wave_label()
+	_update_wave_timer()
+	_update_scrap_label()
+	_update_drone_ui()
+	print("UI labels refreshed for language: ", LanguageManager.get_current_language())
 
 
 func _on_drone_spawned() -> void:
@@ -1158,7 +1174,7 @@ func _on_area_changed(area) -> void:
 
 	# Update UI with area name
 	if wave_label:
-		wave_label.text = "Wave: " + str(current_wave) + " | " + area.name
+		wave_label.text = tr(UIStrings.WAVE_FMT).format({"n": current_wave}) + " | " + area.name
 
 
 func _on_portal_appeared(portal_position: Vector2) -> void:
