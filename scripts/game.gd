@@ -2,7 +2,7 @@ extends Node2D
 
 # Preload scenes
 var enemy_scene = preload("res://scenes/Enemy.tscn")
-var boss_scene = preload("res://scenes/BossEnemy.tscn")
+var boss_scene = preload("res://scenes/Boss.tscn")
 var drone_scene = preload("res://scenes/SupportDrone.tscn")
 var scrap_pickup_scene = preload("res://scenes/ScrapPickup.tscn")
 var player_scene: PackedScene = preload("res://scenes/Player.tscn")
@@ -49,6 +49,7 @@ var player: CharacterBody2D = null
 @onready var wave_label = $UI/WaveLabel
 @onready var wave_timer_label = $UI/WaveTimerLabel
 @onready var scrap_label = $UI/ScrapLabel  # New scrap display
+@onready var drone_shop_label = $UI/DroneShopLabel  # Hacker-specific drone shop counter
 @onready var pause_menu = $UI/PauseMenu
 @onready var wave_complete_screen = $UI/WaveCompleteScreen
 @onready var game_over_screen = $UI/GameOverScreen
@@ -136,6 +137,9 @@ func _ready() -> void:
 	GameManager.score_changed.connect(_on_score_changed)
 	GameManager.game_over.connect(_on_game_over)
 
+	# Connect ShopManager signals
+	ShopManager.shop_closed.connect(_on_shop_closed)
+
 	# Connect player signals
 	player.health_changed.connect(_on_player_health_changed)
 	player.shield_changed.connect(_on_player_shield_changed)
@@ -168,6 +172,13 @@ func _ready() -> void:
 	_update_wave_timer()
 	_update_scrap_label()
 
+	# Show drone shop label only for Hacker
+	if CharacterSystem.current_character == "hacker":
+		drone_shop_label.visible = true
+		_update_drone_shop_label()
+	else:
+		drone_shop_label.visible = false
+
 	# Set process modes
 	pause_menu.process_mode = Node.PROCESS_MODE_ALWAYS
 	wave_complete_screen.process_mode = Node.PROCESS_MODE_ALWAYS
@@ -186,6 +197,17 @@ func _ready() -> void:
 		admin_tool = admin_tool_script.new()
 		admin_tool.name = "AdminTool"
 		ui.add_child(admin_tool)
+
+	# Initialize Debug Log Window
+	var debug_log_window_scene = load("res://scenes/DebugLogWindow.tscn")
+	if debug_log_window_scene:
+		var debug_window = debug_log_window_scene.instantiate()
+		debug_window.name = "DebugLogWindow"
+		add_child(debug_window)
+		if DebugLogger:
+			DebugLogger.log_info("Spiel gestartet - Wave 1")
+	else:
+		push_error("DebugLogWindow.tscn konnte nicht geladen werden!")
 
 	# Initialize enemy pool for better performance
 	_initialize_enemy_pool()
@@ -288,6 +310,10 @@ func _process(delta: float) -> void:
 	_update_wave_timer()
 	_update_drone_ui()
 
+	# Update drone shop label (Hacker-specific)
+	if CharacterSystem.current_character == "hacker" and drone_shop_label.visible:
+		_update_drone_shop_label()
+
 	# Update affixes
 	if affix_manager:
 		affix_manager._process(delta)
@@ -314,12 +340,17 @@ func _complete_wave() -> void:
 	# Increment global wave counter
 	GameManager.wave_count += 1
 
-	# Check for route selection (every 3 waves)
-	if GameManager.wave_count % 3 == 0:
+	# TEMPORARILY DISABLED: Check for route selection (every 3 waves)
+	# TODO: Re-enable once map change bug is fixed
+	if false:  # GameManager.wave_count % 3 == 0:
 		# SPAWN MINIBOSS FIRST - must be defeated before route selection
-		if miniboss_spawner:
+		if miniboss_spawner and is_instance_valid(miniboss_spawner):
+			print("Spawning miniboss for wave ", GameManager.wave_count)
 			miniboss_spawner.spawn_miniboss(GameManager.wave_count)
 			await miniboss_spawner.wait_for_miniboss_defeat()
+			print("Miniboss defeated, showing route selection")
+		else:
+			print("WARNING: miniboss_spawner is invalid!")
 
 		# THEN show route selection
 		_show_route_selection()
@@ -342,31 +373,16 @@ func _complete_wave() -> void:
 	if CharacterSystem.current_character == "hacker":
 		_spawn_consoles()
 
-	# NOW show wave complete screen
-	wave_complete_screen.visible = true
+	# Open Wave Shop instead of old item selection screen
+	ShopManager.open_shop(ShopManager.ShopType.WAVE_SHOP)
 
-	# Update wave complete label
-	var wave_text = "WAVE " + str(current_wave) + " COMPLETE!"
-
-	# Check if next wave is a boss wave (every 10 waves)
-	var is_boss_wave = ((current_wave + 1) % 10) == 0
-	if is_boss_wave:
-		wave_text += "\n\nBOSS INCOMING!"
-
-	$UI/WaveCompleteScreen/VBoxContainer/WaveCompleteLabel.text = wave_text
-
-	# Get random items
-	var random_items = ItemDatabase.get_random_items(3)
-
-	# Clear previous items
-	var items_container = $UI/WaveCompleteScreen/VBoxContainer/ItemsContainer
-	for child in items_container.get_children():
-		child.queue_free()
-
-	# Create item buttons
-	for item in random_items:
-		var item_button = _create_item_button(item)
-		items_container.add_child(item_button)
+	# OLD SYSTEM DISABLED - kept for compatibility
+	# wave_complete_screen.visible = true
+	# var wave_text = "WAVE " + str(current_wave) + " COMPLETE!"
+	# var is_boss_wave = ((current_wave + 1) % 10) == 0
+	# if is_boss_wave:
+	# 	wave_text += "\n\nBOSS INCOMING!"
+	# $UI/WaveCompleteScreen/VBoxContainer/WaveCompleteLabel.text = wave_text
 
 
 func _create_item_button(item) -> Button:
@@ -413,10 +429,28 @@ func _create_item_button(item) -> Button:
 	return button
 
 
+func _on_shop_closed() -> void:
+	"""Called when shop is closed - start next wave"""
+	current_wave += 1
+	wave_timer = 0.0
+	in_wave_break = false
+	_update_wave_label()
+
+	# Grant drone shop to Hacker every 3rd wave
+	if (current_wave % 3) == 0 and CharacterSystem.current_character == "hacker":
+		if player and player.has_method("grant_drone_shop"):
+			player.grant_drone_shop()
+
+	# Spawn boss if it's a boss wave (every 10 waves)
+	var is_boss_wave = (current_wave % 10) == 0
+	if is_boss_wave:
+		_spawn_boss()
+
+
 func _on_item_selected(item) -> void:
-	"""Handle item selection"""
+	"""Handle item selection (OLD SYSTEM - kept for compatibility)"""
 	# Apply item effects to player
-	_apply_item_effects(item)
+	apply_item_effects(item)
 
 	# Start next wave
 	current_wave += 1
@@ -430,8 +464,8 @@ func _on_item_selected(item) -> void:
 		_spawn_boss()
 
 
-func _apply_item_effects(item) -> void:
-	"""Apply item effects to the player"""
+func apply_item_effects(item) -> void:
+	"""Apply item effects to the player (public for ShopUI)"""
 	for effect_name in item.effects:
 		var effect_value = item.effects[effect_name]
 
@@ -478,6 +512,46 @@ func _apply_item_effects(item) -> void:
 			"active_item":
 				# Handle active items with special functions
 				_activate_active_item(effect_value, item.effects)
+			# LASER UPGRADES
+			"laser_damage_mult":
+				player.laser_upgrades["laser_damage_mult"] *= effect_value
+				print("Laser damage multiplier: ", player.laser_upgrades["laser_damage_mult"])
+			"laser_firerate_mult":
+				player.laser_upgrades["laser_firerate_mult"] *= effect_value
+				print("Laser fire rate multiplier: ", player.laser_upgrades["laser_firerate_mult"])
+			"laser_width_mult":
+				player.laser_upgrades["laser_width_mult"] *= effect_value
+				print("Laser width multiplier: ", player.laser_upgrades["laser_width_mult"])
+			"laser_penetration_bonus":
+				player.laser_upgrades["laser_penetration_bonus"] += effect_value
+				print("Laser penetration bonus: ", player.laser_upgrades["laser_penetration_bonus"])
+			"infinite_pierce":
+				if effect_value:
+					player.laser_upgrades["infinite_pierce"] = true
+					print("Laser infinite pierce enabled!")
+			"laser_chain_count":
+				player.laser_upgrades["laser_chain_count"] = effect_value
+				print("Laser chain count: ", effect_value)
+			"laser_chain_range":
+				player.laser_upgrades["laser_chain_range"] = effect_value
+			"chain_damage_mult":
+				player.laser_upgrades["chain_damage_mult"] = effect_value
+			"laser_split_count":
+				player.laser_upgrades["laser_split_count"] = effect_value
+				print("Laser split count: ", effect_value)
+			"laser_split_angle":
+				player.laser_upgrades["laser_split_angle"] = effect_value
+			"split_homing":
+				player.laser_upgrades["split_homing"] = effect_value
+			"laser_overcharge_interval":
+				player.laser_upgrades["overcharge_interval"] = effect_value
+				print("Laser overcharge every ", effect_value, " shots")
+			"overcharge_damage_mult":
+				player.laser_upgrades["overcharge_damage_mult"] = effect_value
+			"overcharge_aoe":
+				player.laser_upgrades["overcharge_aoe"] = effect_value
+			"overcharge_stun":
+				player.laser_upgrades["overcharge_stun"] = effect_value
 
 	print("Applied item: ", item.name)
 
@@ -489,7 +563,7 @@ func admin_grant_item(item_id: String) -> bool:
 		print("AdminTool: Unknown item id ", item_id)
 		return false
 
-	_apply_item_effects(item)
+	apply_item_effects(item)
 	return true
 
 
@@ -827,6 +901,13 @@ func _update_scrap_label() -> void:
 		scrap_label.text = "Scrap: " + str(scrap_earned_this_run)
 
 
+func _update_drone_shop_label() -> void:
+	"""Update drone shop counter (Hacker-specific)"""
+	if drone_shop_label and player:
+		var shops_available = player.get("drone_shops_available") if player.get("drone_shops_available") != null else 0
+		drone_shop_label.text = "Drone Shops: " + str(shops_available) + " [T]"
+
+
 func _on_resume_pressed() -> void:
 	"""Resume game from pause menu"""
 	GameManager.toggle_pause()
@@ -856,6 +937,7 @@ func add_scrap(amount: int) -> void:
 		return
 	scrap_earned_this_run += amount
 	SaveManager.add_scrap(amount)
+	GameManager.add_scrap(amount)  # Also track in GameManager for in-run usage
 	_update_scrap_label()
 
 
@@ -1714,23 +1796,29 @@ func _trigger_emp_pulse() -> void:
 # ============================================================================
 
 func _spawn_consoles() -> void:
-	"""Spawn a single hackable console per map"""
+	"""Spawn a single hackable console per map (only on control_center tiles)"""
 	if console_spawned:
 		return
 
-	var arena_rect: Rect2 = map_generator.get_arena_bounds()
-	print("Spawning console for Hacker")
+	# Get all control_center tile positions from map generator
+	var control_center_positions: Array[Vector2] = map_generator.get_control_center_positions()
+
+	if control_center_positions.is_empty():
+		print("WARNING: No control_center tiles found! Cannot spawn console.")
+		return
+
+	print("Spawning console for Hacker on control_center tile")
+
+	# Pick a random control_center tile position
+	var spawn_pos: Vector2 = control_center_positions[randi() % control_center_positions.size()]
 
 	var console = console_scene.instantiate()
-	var spawn_margin := 180.0
-	var spawn_x := randf_range(arena_rect.position.x + spawn_margin, arena_rect.position.x + arena_rect.size.x - spawn_margin)
-	var spawn_y := randf_range(arena_rect.position.y + spawn_margin, arena_rect.position.y + arena_rect.size.y - spawn_margin)
-	console.global_position = Vector2(spawn_x, spawn_y)
+	console.global_position = spawn_pos
 	console.console_hacked.connect(_on_console_hacked)
 	add_child(console)
 	active_consoles.append(console)
 	console_spawned = true
-	print("Console spawned at ", console.global_position)
+	print("Console spawned at ", console.global_position, " (control_center tile)")
 
 
 func _on_console_hacked(console: Node, _mod_type: int, mod_scene_path: String) -> void:

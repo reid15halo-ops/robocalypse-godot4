@@ -1,0 +1,35 @@
+[gd_scene load_steps=3 format=3 uid="uid://b5h8k2n7m4jqp"]
+
+[ext_resource type="Script" path="res://scripts/ShopTerminal.gd" id="1_terminal"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_1"]
+size = Vector2(32, 32)
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_1"]
+radius = 100.0
+
+[node name="ShopTerminal" type="StaticBody2D" groups=["shop_terminal"]]
+collision_layer = 4
+collision_mask = 0
+script = ExtResource("1_terminal")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+scale = Vector2(32, 32)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("RectangleShape2D_1")
+
+[node name="InteractionArea" type="Area2D" parent="."]
+collision_layer = 0
+collision_mask = 1
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="InteractionArea"]
+shape = SubResource("CircleShape2D_1")
+
+[node name="PromptLabel" type="Label" parent="."]
+offset_left = -50.0
+offset_top = -60.0
+offset_right = 50.0
+offset_bottom = -40.0
+text = "[E] Open Shop"
+horizontal_alignment = 1

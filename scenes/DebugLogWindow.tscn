@@ -1,0 +1,98 @@
+[gd_scene load_steps=2 format=3 uid="uid://clrhv83u8qiom"]
+
+[ext_resource type="Script" path="res://scripts/debug_log_window.gd" id="1_debug_window"]
+
+[node name="DebugLogWindow" type="CanvasLayer"]
+layer = 100
+script = ExtResource("1_debug_window")
+
+[node name="WindowPanel" type="Panel" parent="."]
+offset_left = 20.0
+offset_top = 20.0
+offset_right = 820.0
+offset_bottom = 520.0
+
+[node name="VBoxContainer" type="VBoxContainer" parent="WindowPanel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 10.0
+offset_top = 10.0
+offset_right = -10.0
+offset_bottom = -10.0
+
+[node name="Title" type="Label" parent="WindowPanel/VBoxContainer"]
+layout_mode = 2
+text = "=== ROBOCALYPSE DEBUG LOG ==="
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="TopBar" type="HBoxContainer" parent="WindowPanel/VBoxContainer"]
+layout_mode = 2
+
+[node name="ErrorCount" type="Label" parent="WindowPanel/VBoxContainer/TopBar"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Fehler: 0"
+
+[node name="WarningCount" type="Label" parent="WindowPanel/VBoxContainer/TopBar"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Warnungen: 0"
+modulate = Color(1, 0.8, 0, 1)
+
+[node name="InfoCount" type="Label" parent="WindowPanel/VBoxContainer/TopBar"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Info: 0"
+modulate = Color(0.7, 0.7, 0.7, 1)
+
+[node name="HSeparator" type="HSeparator" parent="WindowPanel/VBoxContainer"]
+layout_mode = 2
+
+[node name="ScrollContainer" type="ScrollContainer" parent="WindowPanel/VBoxContainer"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="LogText" type="RichTextLabel" parent="WindowPanel/VBoxContainer"]
+custom_minimum_size = Vector2(0, 350)
+layout_mode = 2
+size_flags_vertical = 3
+bbcode_enabled = true
+scroll_following = true
+text = "[color=#888888]Warte auf Logs...[/color]"
+
+[node name="HSeparator2" type="HSeparator" parent="WindowPanel/VBoxContainer"]
+layout_mode = 2
+
+[node name="BottomBar" type="HBoxContainer" parent="WindowPanel/VBoxContainer"]
+layout_mode = 2
+
+[node name="AutoScrollCheck" type="CheckBox" parent="WindowPanel/VBoxContainer/BottomBar"]
+layout_mode = 2
+button_pressed = true
+text = "Auto-Scroll"
+
+[node name="Spacer" type="Control" parent="WindowPanel/VBoxContainer/BottomBar"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="ClearButton" type="Button" parent="WindowPanel/VBoxContainer/BottomBar"]
+layout_mode = 2
+text = "Logs Löschen"
+
+[node name="CopyButton" type="Button" parent="WindowPanel/VBoxContainer/BottomBar"]
+layout_mode = 2
+text = "In Zwischenablage"
+
+[node name="CloseButton" type="Button" parent="WindowPanel/VBoxContainer/BottomBar"]
+layout_mode = 2
+text = "Schließen (F3)"
+
+[node name="HelpLabel" type="Label" parent="WindowPanel/VBoxContainer"]
+layout_mode = 2
+text = "F3 = Toggle Fenster | Logs werden automatisch in user://debug_log.txt gespeichert"
+horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 3

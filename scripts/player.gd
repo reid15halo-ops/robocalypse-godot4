@@ -53,6 +53,26 @@ const WEAPON_FIRE_RATES := {
 var weapon_range: float = 800.0
 var external_velocity: Vector2 = Vector2.ZERO
 
+# Laser Upgrades
+var laser_upgrades: Dictionary = {
+	"laser_damage_mult": 1.0,
+	"laser_firerate_mult": 1.0,
+	"laser_width_mult": 1.0,
+	"laser_penetration_bonus": 0,
+	"infinite_pierce": false,
+	"laser_chain_count": 0,
+	"laser_chain_range": 150.0,
+	"chain_damage_mult": 0.5,
+	"laser_split_count": 0,
+	"laser_split_angle": 45.0,
+	"split_homing": 0.0,
+	"overcharge_interval": 0,
+	"overcharge_damage_mult": 1.0,
+	"overcharge_aoe": 0.0,
+	"overcharge_stun": 0.0
+}
+var laser_shot_counter: int = 0  # For overcharge tracking
+
 @onready var weapon_anchor: Node2D = get_node_or_null("WeaponAnchor")
 @onready var weapon_sprite: Sprite2D = get_node_or_null("WeaponAnchor/WeaponSprite")
 var weapon_base_offset: Vector2 = Vector2(26, -10)
@@ -76,6 +96,11 @@ var use_sprites: bool = true  # Sprites are now available!
 # ITEM UPGRADE TRACKING SYSTEM
 # ============================================================================
 var owned_items: Dictionary = {}  # item_id -> current_level (1, 2, or 3)
+
+# ============================================================================
+# DRONE SHOP ABILITY (HACKER-SPECIFIC)
+# ============================================================================
+var drone_shops_available: int = 0  # Number of drone shops available to use
 
 
 func has_item(item_id: String) -> bool:
@@ -236,6 +261,10 @@ func _physics_process(delta: float) -> void:
 		if Input.is_action_just_pressed("ability_r"):
 			AbilitySystem.use_ability("R", self)
 
+		# Drone Shop ability (T key) - Hacker-specific
+		if Input.is_action_just_pressed("drone_shop"):
+			_try_open_drone_shop()
+
 # Check for enemy overlaps
 	_check_enemy_overlap()
 
@@ -320,13 +349,11 @@ func update_weapon_visual(weapon: Dictionary) -> void:
 		return
 
 	if texture_path != current_weapon_texture_path or weapon_sprite.texture == null:
-		if not ResourceLoader.exists(texture_path):
-			weapon_sprite.visible = false
-			current_weapon_texture_path = ""
-			return
+		# Load texture via AssetManager with automatic fallback
+		var texture: Texture2D = AssetManager.load_texture(texture_path)
 
-		var texture: Texture2D = load(texture_path) as Texture2D
-		if texture == null:
+		# If placeholder (asset missing), hide weapon sprite
+		if texture == AssetManager.get_placeholder():
 			weapon_sprite.visible = false
 			current_weapon_texture_path = ""
 			return
@@ -482,6 +509,11 @@ func _fire_weapons() -> void:
 	# Fire each weapon
 	for weapon_type in equipped_weapons:
 		var fire_rate: float = WEAPON_FIRE_RATES.get(weapon_type, 1.0)
+
+		# Apply laser fire rate multiplier
+		if weapon_type == "laser":
+			fire_rate = fire_rate / laser_upgrades.get("laser_firerate_mult", 1.0)
+
 		var cooldown: float = weapon_cooldowns.get(weapon_type, 0.0)
 
 		if cooldown >= fire_rate:
@@ -495,11 +527,15 @@ func _fire_weapon(weapon_type: String, target: Node2D) -> void:
 
 	match weapon_type:
 		"laser":
-			_spawn_projectile(laser_scene, direction)
+			_fire_laser(direction)
 		"rocket":
-			_spawn_projectile(rocket_scene, direction)
+			# TEMPORARILY DISABLED
+			print("Rocket launcher disabled for stability")
+			# _spawn_projectile(rocket_scene, direction)
 		"shotgun":
-			_fire_shotgun(direction)
+			# TEMPORARILY DISABLED
+			print("Shotgun disabled for stability")
+			# _fire_shotgun(direction)
 
 
 func _spawn_projectile(projectile_scene: PackedScene, direction: Vector2) -> void:
@@ -508,6 +544,34 @@ func _spawn_projectile(projectile_scene: PackedScene, direction: Vector2) -> voi
 	projectile.global_position = global_position
 	projectile.set_direction(direction)
 	get_parent().add_child(projectile)
+
+
+func _fire_laser(direction: Vector2) -> void:
+	"""Fire laser with upgrades"""
+	laser_shot_counter += 1
+
+	# Check for overcharge
+	var is_overcharged = false
+	var overcharge_interval = laser_upgrades.get("overcharge_interval", 0)
+	if overcharge_interval > 0 and laser_shot_counter >= overcharge_interval:
+		is_overcharged = true
+		laser_shot_counter = 0
+
+	# Create laser projectile
+	var laser = laser_scene.instantiate()
+	laser.global_position = global_position
+
+	# Apply upgrades
+	var upgrades = laser_upgrades.duplicate()
+	upgrades["is_overcharged"] = is_overcharged
+	if is_overcharged:
+		upgrades["overcharge_aoe"] = laser_upgrades.get("overcharge_aoe", 0.0)
+
+	if laser.has_method("set_laser_upgrades"):
+		laser.set_laser_upgrades(upgrades)
+
+	laser.set_direction(direction)
+	get_parent().add_child(laser)
 
 
 func _fire_shotgun(direction: Vector2) -> void:
@@ -559,13 +623,14 @@ func _setup_visual() -> void:
 
 func _create_sprite_visual() -> void:
 	"""Create AnimatedSprite2D visual (when assets available)"""
-	var sprite_sheet_path: String = "res://assets/sprites/player/player_walk_64x64_8f.png"
-	if not ResourceLoader.exists(sprite_sheet_path):
-		use_sprites = false
-		return
+	# Load hacker spritesheet with AssetManager (automatic fallback)
+	var sprite_sheet: Texture2D = AssetManager.try_load_texture_with_fallback(
+		"res://assets/sprites/player/hacker_1_laufanimationen_clean.png",
+		"res://assets/sprites/player/hacker_1_laufanimationen.png"
+	)
 
-	var sprite_sheet: Texture2D = load(sprite_sheet_path) as Texture2D
-	if sprite_sheet == null:
+	# If placeholder (magenta checkerboard), disable sprites
+	if sprite_sheet == AssetManager.get_placeholder():
 		use_sprites = false
 		return
 
@@ -578,28 +643,44 @@ func _create_sprite_visual() -> void:
 	add_child(sprite)
 
 	var frames: SpriteFrames = SpriteFrames.new()
+
+	# Frame configuration for 1024x1024 spritesheet
+	# Layout: 4 columns, 2 rows (frames 0-3 in row 1, frames 4-5 in row 2)
+	const FRAME_WIDTH: int = 256
+	const FRAME_HEIGHT: int = 512
+
+	# Idle animation (use first frame)
 	frames.add_animation("idle")
 	frames.set_animation_loop("idle", true)
 	frames.set_animation_speed("idle", 1.0)
 
 	var idle_texture: AtlasTexture = AtlasTexture.new()
 	idle_texture.atlas = sprite_sheet
-	idle_texture.region = Rect2i(Vector2i.ZERO, Vector2i(64, 64))
+	idle_texture.region = Rect2i(0, 0, FRAME_WIDTH, FRAME_HEIGHT)
 	frames.add_frame("idle", idle_texture)
 
+	# Walk animation (all 6 frames)
 	frames.add_animation("walk")
 	frames.set_animation_loop("walk", true)
-	frames.set_animation_speed("walk", 10.0)
+	frames.set_animation_speed("walk", 8.0)  # Smooth animation at 8 FPS
 
-	for i in range(8):
-		var frame_region: Rect2i = Rect2i(i * 64, 0, 64, 64)
+	# Row 1: Frames 0-3 (y=0)
+	for i in range(4):
 		var frame_texture: AtlasTexture = AtlasTexture.new()
 		frame_texture.atlas = sprite_sheet
-		frame_texture.region = frame_region
+		frame_texture.region = Rect2i(i * FRAME_WIDTH, 0, FRAME_WIDTH, FRAME_HEIGHT)
+		frames.add_frame("walk", frame_texture)
+
+	# Row 2: Frames 4-5 (y=512)
+	for i in range(2):
+		var frame_texture: AtlasTexture = AtlasTexture.new()
+		frame_texture.atlas = sprite_sheet
+		frame_texture.region = Rect2i(i * FRAME_WIDTH, FRAME_HEIGHT, FRAME_WIDTH, FRAME_HEIGHT)
 		frames.add_frame("walk", frame_texture)
 
 	sprite.sprite_frames = frames
-	sprite.scale = Vector2(1.3, 1.3)
+	# Smaller scale due to larger sprite (256x512 vs 64x64)
+	sprite.scale = Vector2(0.25, 0.25)  # Scale down from 512 height to ~128
 	sprite.play("idle")
 
 
@@ -663,3 +744,23 @@ func _check_enemy_overlap() -> void:
 		if collider and collider.is_in_group("enemies"):
 			take_damage(10)
 			break
+
+
+func _try_open_drone_shop() -> void:
+	"""Try to open drone shop (Hacker-specific ability)"""
+	if drone_shops_available <= 0:
+		print("No drone shops available. Gain one every 3 waves!")
+		return
+
+	# Consume one drone shop charge
+	drone_shops_available -= 1
+	print("Opening Drone Shop! (", drone_shops_available, " remaining)")
+
+	# Open the shop
+	ShopManager.open_shop(ShopManager.ShopType.DRONE_SHOP)
+
+
+func grant_drone_shop() -> void:
+	"""Grant a drone shop charge (called by game.gd every 3 waves)"""
+	drone_shops_available += 1
+	print("Drone Shop available! Press [T] to open. (", drone_shops_available, " total)")

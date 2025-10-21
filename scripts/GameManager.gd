@@ -12,9 +12,11 @@ enum RouteModifier {
 signal score_changed(new_score: int)
 signal game_over
 signal route_selected(route: RouteModifier)
+signal scrap_changed(new_scrap: int)
 
 # Game state
 var score: int = 0
+var scrap: int = 0  # Currency for upgrades and shop
 var is_game_over: bool = false
 var is_paused: bool = false
 var wave_count: int = 0
@@ -32,12 +34,14 @@ func _ready() -> void:
 func reset_game() -> void:
 	"""Reset all game variables to initial state"""
 	score = 0
+	scrap = 0
 	is_game_over = false
 	is_paused = false
 	player = null
 	wave_count = 0
 	current_route = RouteModifier.NONE
 	score_changed.emit(score)
+	scrap_changed.emit(scrap)
 
 
 func add_score(points: int) -> void:
@@ -73,3 +77,27 @@ func set_player(player_node: CharacterBody2D) -> void:
 func get_player() -> CharacterBody2D:
 	"""Get reference to player node"""
 	return player
+
+
+func add_scrap(amount: int) -> void:
+	"""Add scrap currency"""
+	if is_game_over:
+		return
+
+	scrap += amount
+	scrap_changed.emit(scrap)
+	print("Scrap collected: +", amount, " (Total: ", scrap, ")")
+
+
+func on_scrap_collected(amount: int) -> void:
+	"""Called when scrap pickup is collected (compatibility method)"""
+	add_scrap(amount)
+
+
+func spend_scrap(amount: int) -> bool:
+	"""Spend scrap if enough available. Returns true if successful."""
+	if scrap >= amount:
+		scrap -= amount
+		scrap_changed.emit(scrap)
+		return true
+	return false

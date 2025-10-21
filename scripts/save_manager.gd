@@ -7,7 +7,8 @@ const SAVE_VERSION = "1.0"
 # Default save data structure
 var default_save_data = {
 	"version": SAVE_VERSION,
-	"scrap": 0,
+	"scrap": 0,  # In-run currency (resets each run)
+	"credits": 0,  # Meta-progression currency (persists between runs)
 	"selected_character": "hacker",  # Currently selected character
 	"meta_upgrades": {
 		"max_hp_level": 0,
@@ -111,6 +112,25 @@ func add_scrap(amount: int) -> void:
 func spend_scrap(amount: int) -> bool:
 	if save_data.scrap >= amount:
 		save_data.scrap -= amount
+		save_game()
+		return true
+	return false
+
+
+# Credits functions (meta-progression currency)
+func get_credits() -> int:
+	return save_data.get("credits", 0)
+
+
+func add_credits(amount: int) -> void:
+	save_data.credits += amount
+	save_game()
+	print("Added ", amount, " credits. Total: ", save_data.credits)
+
+
+func spend_credits(amount: int) -> bool:
+	if save_data.credits >= amount:
+		save_data.credits -= amount
 		save_game()
 		return true
 	return false
