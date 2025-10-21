@@ -1079,7 +1079,7 @@ func _spawn_hacker_drone() -> void:
 		return
 
 	drone_controller.spawn_drone()
-	print("Hacker Combat Drone spawned! Press E to switch control.")
+	print(tr(UIStrings.DRONE_SPAWNED))
 
 
 func _apply_drone_upgrade(upgrade_id: String) -> void:

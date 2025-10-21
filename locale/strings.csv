@@ -22,3 +22,4 @@ XP,XP,EP,EXP
 XP_FMT,XP: {current}/{needed},EP: {current}/{needed},EXP: {current}/{needed}
 CONTROLLING_DRONE,[CONTROLLING DRONE],[DROHNE STEUERN],[CONTROLANDO DRON]
 PRESS_E_CONTROL,[Press E to Control],[E zum Steuern],[Presiona E para controlar]
+DRONE_SPAWNED,Hacker Combat Drone spawned! Press E to switch control.,Hacker Kampfdrohne gespawnt! Drücke E zum Wechseln.,¡Dron de combate Hacker generado! Presiona E para cambiar el control.
