@@ -16,3 +16,8 @@ shape = SubResource("RectangleShape2D_enemy")
 sprite_frames = ExtResource("2_sprite")
 animation = &"hover"
 autoplay = "hover"
+
+[node name="NavigationAgent2D" type="NavigationAgent2D" parent="."]
+path_desired_distance = 10.0
+target_desired_distance = 10.0
+avoidance_enabled = true

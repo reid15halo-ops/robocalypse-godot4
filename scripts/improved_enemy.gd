@@ -683,6 +683,23 @@ func _create_sprite_visual() -> void:
 	sprite.scale = Vector2(enemy_size, enemy_size)
 
 
+func _get_sprite_path_for_enemy() -> String:
+	"""Get correct sprite path based on drone type metadata"""
+	var drone_type = get_meta("drone_type", "standard")
+
+	match drone_type:
+		"kamikaze":
+			return "res://assets/anim/drone_kamikaze.tres"
+		"sniper":
+			return "res://assets/anim/drone_sniper.tres"
+		"fast":
+			return "res://assets/anim/drone_fast.tres"
+		"heavy":
+			return "res://assets/anim/drone_heavy.tres"
+		_:
+			return "res://assets/anim/drone_standard.tres"
+
+
 func _create_colorrect_visual() -> void:
 	"""Create ColorRect visual"""
 	visual_node = Node2D.new()

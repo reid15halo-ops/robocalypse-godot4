@@ -33,6 +33,7 @@ var areas: Dictionary = {}
 
 # Portal/Arrow tracking
 var active_portal: Node = null
+var portal_pending: bool = false
 
 # Signals
 signal area_changed(area: AreaData)
@@ -40,8 +41,8 @@ signal portal_appeared(position: Vector2)
 
 
 func _ready() -> void:
-	_initialize_areas()
-	current_area = areas[current_area_id]
+    _initialize_areas()
+    current_area = areas[current_area_id]
 
 
 func _initialize_areas() -> void:
@@ -116,26 +117,33 @@ func get_difficulty_multiplier() -> float:
 
 
 func complete_wave() -> void:
-	"""Called when player completes a wave"""
-	waves_in_current_area += 1
+    """Called when player completes a wave"""
+    if current_area == null:
+        return
+    waves_in_current_area += 1
 
-	# Check if player can advance to next area
-	if waves_in_current_area >= current_area.waves_required and current_area.next_area_id:
-		_spawn_portal_to_next_area()
+    # Check if player can advance to next area
+    if waves_in_current_area >= current_area.waves_required and current_area.next_area_id:
+        _spawn_portal_to_next_area()
 
 
 func _spawn_portal_to_next_area() -> void:
-	"""Spawn portal/arrow to next area"""
-	var next_area = areas.get(current_area.next_area_id)
-	if not next_area:
-		return
+    """Spawn portal/arrow to next area"""
+    # Avoid duplicate announcements/portals
+    if (active_portal and is_instance_valid(active_portal)) or portal_pending:
+        return
+    var next_area = areas.get(current_area.next_area_id)
+    if not next_area:
+        return
 
-	# Get direction to next area
-	var direction = (next_area.position - current_area.position).normalized()
-	var portal_pos = current_area.position + direction * 250
+    # Get direction to next area
+    var to_next = next_area.position - current_area.position
+    var direction = to_next.length() > 0.0 ? to_next.normalized() : Vector2.RIGHT
+    var portal_pos = current_area.position + direction * 250
 
-	portal_appeared.emit(portal_pos)
-	print("Portal to ", next_area.name, " has appeared!")
+    portal_appeared.emit(portal_pos)
+    portal_pending = true
+    print("Portal to ", next_area.name, " has appeared!")
 
 
 func advance_to_next_area() -> bool:
@@ -147,15 +155,16 @@ func advance_to_next_area() -> bool:
 	if not next_area:
 		return false
 
-	# Remove old portal
-	if active_portal and is_instance_valid(active_portal):
-		active_portal.queue_free()
-		active_portal = null
+    # Remove old portal
+    if active_portal and is_instance_valid(active_portal):
+        active_portal.queue_free()
+        active_portal = null
 
 	# Switch to new area
-	current_area = next_area
-	current_area_id = next_area.id
-	waves_in_current_area = 0
+    current_area = next_area
+    current_area_id = next_area.id
+    waves_in_current_area = 0
+    portal_pending = false
 
 	area_changed.emit(current_area)
 	print("Advanced to: ", current_area.name)
@@ -165,67 +174,81 @@ func advance_to_next_area() -> bool:
 
 
 func create_portal_visual(game_scene: Node, position: Vector2) -> void:
-	"""Create visual portal/arrow at position"""
-	var portal = Area2D.new()
-	portal.name = "AreaPortal"
-	portal.global_position = position
-	portal.collision_layer = 0
-	portal.collision_mask = 1  # Detect player
+    """Create visual portal/arrow at position"""
+    var portal = Area2D.new()
+    portal.name = "AreaPortal"
+    portal.global_position = position
+    portal.collision_layer = 0
+    portal.collision_mask = 1  # Detect player
 
-	# Collision shape
-	var collision_shape = CollisionShape2D.new()
-	var circle = CircleShape2D.new()
-	circle.radius = 60.0
-	collision_shape.shape = circle
-	portal.add_child(collision_shape)
+    # Collision shape
+    var collision_shape = CollisionShape2D.new()
+    var circle = CircleShape2D.new()
+    circle.radius = 60.0
+    collision_shape.shape = circle
+    portal.add_child(collision_shape)
 
-	# Visual - glowing circle
-	var visual = ColorRect.new()
-	visual.size = Vector2(120, 120)
-	visual.position = -visual.size / 2
-	visual.color = Color(0.0, 1.0, 0.5, 0.6)
-	visual.z_index = 10
-	portal.add_child(visual)
+    # Visual - glowing circle using Polygon2D (Node2D-based)
+    var visual = Polygon2D.new()
+    var circle_points: PackedVector2Array = []
+    var segs := 24
+    var radius := 60.0
+    for i in range(segs):
+        var ang = TAU * float(i) / float(segs)
+        circle_points.append(Vector2(cos(ang), sin(ang)) * radius)
+    visual.polygon = circle_points
+    visual.color = Color(0.0, 1.0, 0.5, 0.6)
+    visual.z_index = 10
+    portal.add_child(visual)
 
-	# Arrow indicator pointing to next area
-	var arrow = ColorRect.new()
-	arrow.size = Vector2(40, 20)
-	arrow.position = Vector2(40, -10)
-	arrow.color = Color(1.0, 1.0, 0.0, 1.0)
-	arrow.z_index = 11
-	portal.add_child(arrow)
+    # Arrow indicator pointing to next area using Polygon2D triangle
+    var arrow = Polygon2D.new()
+    var tri: PackedVector2Array = [Vector2(40, 0), Vector2(0, 12), Vector2(0, -12)]
+    arrow.polygon = tri
+    arrow.color = Color(1.0, 1.0, 0.0, 1.0)
+    arrow.z_index = 11
+    # Orient arrow toward next area if known
+    if current_area and current_area.next_area_id and areas.has(current_area.next_area_id):
+        var next_area: AreaData = areas[current_area.next_area_id]
+        var dir_vec = next_area.position - current_area.position
+        var dir = dir_vec.length() > 0.0 ? dir_vec.normalized() : Vector2.RIGHT
+        arrow.rotation = dir.angle()
+    portal.add_child(arrow)
 
-	# Pulse animation
-	var tween = portal.create_tween().set_loops()
-	tween.tween_property(visual, "modulate:a", 0.3, 1.0)
-	tween.tween_property(visual, "modulate:a", 0.8, 1.0)
+    # Pulse animation
+    var tween = portal.create_tween().set_loops()
+    tween.tween_property(visual, "modulate:a", 0.3, 1.0)
+    tween.tween_property(visual, "modulate:a", 0.8, 1.0)
 
-	# Connect signal
-	portal.body_entered.connect(_on_portal_entered)
+    # Connect signal
+    portal.body_entered.connect(Callable(self, "_on_portal_entered"))
 
-	game_scene.add_child(portal)
-	active_portal = portal
+    game_scene.add_child(portal)
+    active_portal = portal
 
 
-func _on_portal_entered(body: Node) -> void:
-	"""Player entered portal"""
-	if body.is_in_group("player") or body == GameManager.player:
-		advance_to_next_area()
+func _on_portal_entered(body: Node2D) -> void:
+    """Player entered portal"""
+    if body.is_in_group("player") or body == GameManager.player:
+        advance_to_next_area()
 
-		# Move player to new area center
-		if is_instance_valid(body):
-			body.global_position = current_area.position
+        # Move player to new area center
+        if is_instance_valid(body):
+            body.global_position = current_area.position
 
 
 func reset() -> void:
-	"""Reset to starting area"""
-	current_area_id = "area_1"
-	current_area = areas[current_area_id]
-	waves_in_current_area = 0
+    """Reset to starting area"""
+    if areas.is_empty():
+        _initialize_areas()
+    current_area_id = "area_1"
+    current_area = areas[current_area_id]
+    waves_in_current_area = 0
+    portal_pending = false
 
-	if active_portal and is_instance_valid(active_portal):
-		active_portal.queue_free()
-		active_portal = null
+    if active_portal and is_instance_valid(active_portal):
+        active_portal.queue_free()
+        active_portal = null
 
 
 # WALL CREATION REMOVED - FREE ROAMING MAP

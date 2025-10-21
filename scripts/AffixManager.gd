@@ -3,21 +3,32 @@ extends Node
 ## AffixManager – handles route-based environmental modifiers
 
 enum AffixType {
+	# Green Route Affixes (Mobility/Movement)
 	JUMPPADS,
 	TELEPORT_PORTALS,
-	SWAMP,
-	RAIN,
-	EMP_STORM,
-	LIGHTNING_STRIKES,
+	UPDRAFTS,
+	SMOKE_CLOUDS,
+
+	# Yellow Route Affixes (Electrical Hazards)
+	SWAMP_ZONES,
+	ACID_RAIN,
+	LIGHTNING_BOLTS,
+	STATIC_FIELD,
+
+	# Red Route Affixes (Chaos/Disruption)
+	EMP_STORMS,
+	RANDOM_LIGHTNING,
+	MAGNETIC_PULSE,
+	TESLA_GRID
 }
 
 const MAX_ACTIVE_NODES := 10
 
 # Pools per route colour
 const ROUTE_POOLS := {
-	GameManager.RouteModifier.SKYWARD_RUSH: [AffixType.JUMPPADS, AffixType.TELEPORT_PORTALS],
-	GameManager.RouteModifier.STORMFRONT: [AffixType.SWAMP, AffixType.RAIN],
-	GameManager.RouteModifier.EMP_OVERLOAD: [AffixType.EMP_STORM, AffixType.LIGHTNING_STRIKES],
+	GameManager.RouteModifier.SKYWARD_RUSH: [AffixType.JUMPPADS, AffixType.TELEPORT_PORTALS, AffixType.UPDRAFTS, AffixType.SMOKE_CLOUDS],
+	GameManager.RouteModifier.STORMFRONT: [AffixType.SWAMP_ZONES, AffixType.ACID_RAIN, AffixType.LIGHTNING_BOLTS, AffixType.STATIC_FIELD],
+	GameManager.RouteModifier.EMP_OVERLOAD: [AffixType.EMP_STORMS, AffixType.RANDOM_LIGHTNING, AffixType.MAGNETIC_PULSE, AffixType.TESLA_GRID],
 }
 
 var game_scene: Node2D = null
@@ -82,14 +93,26 @@ func _activate_affix(affix_type: int) -> void:
 			entry = _init_jump_pads()
 		AffixType.TELEPORT_PORTALS:
 			entry = _init_teleport_portals()
-		AffixType.SWAMP:
-			entry = _init_swamp()
-		AffixType.RAIN:
-			entry = _init_rain()
-		AffixType.EMP_STORM:
-			entry = _init_emp_storm()
-		AffixType.LIGHTNING_STRIKES:
-			entry = _init_lightning_strikes()
+		AffixType.UPDRAFTS:
+			entry = _init_updrafts()
+		AffixType.SMOKE_CLOUDS:
+			entry = _init_smoke_clouds()
+		AffixType.SWAMP_ZONES:
+			entry = _init_swamp_zones()
+		AffixType.ACID_RAIN:
+			entry = _init_acid_rain()
+		AffixType.LIGHTNING_BOLTS:
+			entry = _init_lightning_bolts()
+		AffixType.STATIC_FIELD:
+			entry = _init_static_field()
+		AffixType.EMP_STORMS:
+			entry = _init_emp_storms()
+		AffixType.RANDOM_LIGHTNING:
+			entry = _init_random_lightning()
+		AffixType.MAGNETIC_PULSE:
+			entry = _init_magnetic_pulse()
+		AffixType.TESLA_GRID:
+			entry = _init_tesla_grid()
 		_:
 			return
 
@@ -281,7 +304,7 @@ func _on_portal_entered(body: Node, portal: Area2D) -> void:
 # YELLOW ROUTE
 # -----------------------------------------------------------------------------
 
-func _init_swamp() -> Dictionary:
+func _init_swamp_zones() -> Dictionary:
 	var container := Node2D.new()
 	container.name = "Affix_Swamp"
 
@@ -324,7 +347,7 @@ func _update_swamp(_delta: float, puddles: Array) -> void:
 					body.velocity = body.velocity * 0.6
 
 
-func _init_rain() -> Dictionary:
+func _init_acid_rain() -> Dictionary:
 	var overlay := ColorRect.new()
 	overlay.name = "Affix_RainOverlay"
 	overlay.color = Color(0.3, 0.4, 0.8, 0.25)
@@ -378,7 +401,7 @@ func _cleanup_rain() -> void:
 # RED ROUTE
 # -----------------------------------------------------------------------------
 
-func _init_emp_storm() -> Dictionary:
+func _init_emp_storms() -> Dictionary:
 	var pulse_timer := Timer.new()
 	pulse_timer.wait_time = 10.0
 	pulse_timer.autostart = true
@@ -418,7 +441,7 @@ func _cleanup_emp() -> void:
 		player.set_meta("emp_forced_disable", false)
 
 
-func _init_lightning_strikes() -> Dictionary:
+func _init_random_lightning() -> Dictionary:
 	var timer := Timer.new()
 	timer.wait_time = 4.0
 	timer.autostart = true
@@ -467,6 +490,84 @@ func _on_lightning_body_entered(body: Node) -> void:
 
 	if (body == player or body.is_in_group("enemies")) and body.has_method("take_damage"):
 		body.take_damage(80)
+
+
+# Green Route - Missing Functions
+func _init_updrafts() -> Dictionary:
+	"""Creates wind currents that boost aerial shots and movement"""
+	print("AffixManager: Activating UPDRAFTS")
+	return {
+		"nodes": [],
+		"update": _updrafts_update,
+		"cleanup": func(): pass,
+		"data": {}
+	}
+
+
+func _updrafts_update(delta: float) -> void:
+	# Implementation for updrafts effect
+	if player and is_instance_valid(player):
+		# Boost player movement slightly when moving
+		if player.velocity.length() > 0:
+			player.velocity *= 1.05
+
+
+func _init_smoke_clouds() -> Dictionary:
+	"""Enemies drop smoke bombs that obscure vision"""
+	print("AffixManager: Activating SMOKE_CLOUDS")
+	return {
+		"nodes": [],
+		"update": func(delta): pass,
+		"cleanup": func(): pass,
+		"data": {}
+	}
+
+
+# Yellow Route - Missing Functions  
+func _init_lightning_bolts() -> Dictionary:
+	"""Chain lightning effects"""
+	print("AffixManager: Activating LIGHTNING_BOLTS")
+	return {
+		"nodes": [],
+		"update": func(delta): pass,
+		"cleanup": func(): pass,
+		"data": {}
+	}
+
+
+func _init_static_field() -> Dictionary:
+	"""Damage zones that persist"""
+	print("AffixManager: Activating STATIC_FIELD")
+	return {
+		"nodes": [],
+		"update": func(delta): pass,
+		"cleanup": func(): pass,
+		"data": {}
+	}
+
+
+# Red Route - Missing Functions
+func _init_magnetic_pulse() -> Dictionary:
+	"""Magnetic forces pull projectiles off course"""
+	print("AffixManager: Activating MAGNETIC_PULSE")
+	return {
+		"nodes": [],
+		"update": func(delta): pass,
+		"cleanup": func(): pass,
+		"data": {}
+	}
+
+
+func _init_tesla_grid() -> Dictionary:
+	"""Tesla coils create persistent damage zones"""
+	print("AffixManager: Activating TESLA_GRID")
+	return {
+		"nodes": [],
+		"update": func(delta): pass,
+		"cleanup": func(): pass,
+		"data": {}
+	}
+
 
 # -----------------------------------------------------------------------------
 # UTILITIES

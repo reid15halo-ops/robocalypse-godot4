@@ -12,9 +12,17 @@ var current_health: int = 100
 
 # Navigation
 var player: CharacterBody2D = null
+@onready var nav_agent: NavigationAgent2D = $NavigationAgent2D
+var last_target_pos: Vector2 = Vector2.INF # Für Caching
+const PATH_UPDATE_THRESHOLD_SQ: float = 10000.0 # 100*100
+var stuck_timer: float = 0.0
+const STUCK_TIME_THRESHOLD: float = 5.0 # 5 Sekunden
 
 # Score value
 @export var score_value: int = 10
+
+
+
 
 # Attack timers and behavior
 var attack_cooldown: float = 0.0
@@ -60,8 +68,12 @@ func _ready() -> void:
 	# Get player reference
 	player = GameManager.get_player()
 
+	# Setup navigation
+	_setup_navigation()
+
 	# Create visual representation
 	_create_visual()
+
 
 	# Start animations
 	if has_pulse_animation:
@@ -113,9 +125,28 @@ func _physics_process(delta: float) -> void:
 			# Standard drone - simple chase
 			_standard_behavior()
 
-	_apply_wall_avoidance(delta)
-	_apply_separation_force(delta)
+	# --- KORRIGIERTE NAVIGATIONSBASIERTE BEWEGUNG (HOTFIX) ---
+	if not nav_agent or not is_instance_valid(nav_agent):
+		# Fallback, wenn kein Navigationsagent vorhanden ist
+		velocity = velocity.move_toward(Vector2.ZERO, current_speed * delta)
+	elif nav_agent.is_navigation_finished():
+		# Ziel erreicht, anhalten
+		nav_agent.set_velocity(Vector2.ZERO)
+	else:
+		# Berechne die gewünschte Geschwindigkeit und übergib sie an den Agenten
+		var direction = (nav_agent.get_next_path_position() - global_position).normalized()
+		var desired_velocity = direction * current_speed
+		nav_agent.set_velocity(desired_velocity)
+	# --- ENDE KORREKTUR ---
+
+	# Stuck-Check
+	_check_if_stuck(delta)
+
+	# Die finale 'velocity' wird durch das 'velocity_computed'-Signal des Agenten gesetzt.
 	move_and_slide()
+
+
+
 
 func apply_stun(duration: float) -> void:
 	"""Temporarily stop movement and actions"""
@@ -234,8 +265,94 @@ func _award_scrap(amount: int) -> void:
 
 
 # ============================================================================
+# NAVIGATION (NEU)
+# ============================================================================
+
+func _setup_navigation():
+	if not nav_agent:
+		push_warning("Enemy: NavigationAgent2D node not found!")
+		return
+	
+	# Performance-Optimierungen
+	nav_agent.path_postprocessing = NavigationAgent2D.PATH_POSTPROCESSING_EDGECENTERED
+	nav_agent.set_max_speed(max_speed) # Wichtig für Avoidance-Berechnungen
+	
+	# Debug-Visualisierung (kann für Release deaktiviert werden)
+	nav_agent.debug_enabled = true 
+	
+	# Warten, bis der Agent auf dem Navigationsserver aktiv ist
+	await get_tree().physics_frame
+	
+	# Verbinde das 'velocity_computed'-Signal für die Vermeidung
+	if nav_agent.avoidance_enabled:
+		nav_agent.velocity_computed.connect(func(safe_velocity):
+			velocity = safe_velocity
+		)
+
+func _update_navigation_target(target_pos: Vector2):
+	if not nav_agent: return
+	
+	# Caching: Pfad nur neu berechnen, wenn sich das Ziel signifikant bewegt hat
+	if target_pos.distance_squared_to(last_target_pos) > PATH_UPDATE_THRESHOLD_SQ:
+		nav_agent.target_position = target_pos
+		last_target_pos = target_pos
+
+
+func _get_navigation_direction(target_position: Vector2) -> Vector2:
+	# Diese Funktion wird jetzt durch den NavigationAgent gesteuert.
+	# Wir setzen das Ziel und der Agent berechnet den Pfad.
+	_update_navigation_target(target_position)
+	
+	if nav_agent.is_navigation_finished():
+		return Vector2.ZERO
+		
+	return (nav_agent.get_next_path_position() - global_position).normalized()
+
+
+# ============================================================================
+# EDGE CASE HANDLING (NEU)
+# ============================================================================
+
+func _check_if_stuck(delta: float):
+	"""Prüft, ob der Gegner feststeckt und löst das Problem."""
+	if velocity.length_squared() < 1.0: # Wenn sich der Gegner kaum bewegt
+		stuck_timer += delta
+	else:
+		stuck_timer = 0.0 # Timer zurücksetzen, wenn Bewegung stattfindet
+
+	if stuck_timer > STUCK_TIME_THRESHOLD:
+		print("Enemy ist festgesteckt. Versuche, das Problem zu lösen...")
+		_handle_stuck_enemy()
+		stuck_timer = 0.0 # Timer zurücksetzen, um Endlosschleifen zu vermeiden
+
+func _handle_stuck_enemy():
+	"""Versucht, einen feststeckenden Gegner zu befreien."""
+	# Option 1: Teleportiere zu einem nahen, gültigen Navigationspunkt
+	var current_map = get_world_2d().navigation_map
+	var nearby_point = NavigationServer2D.map_get_closest_point(current_map, global_position)
+	
+	if global_position.distance_to(nearby_point) > 5.0: # Nur teleportieren, wenn der Punkt nicht der aktuelle ist
+		global_position = nearby_point
+		print("Stuck-Lösung: Gegner zu nächstem Nav-Punkt teleportiert.")
+		return
+
+	# Option 2: Wenn Teleport nicht hilft, Ziel kurzzeitig ändern (z.B. weglaufen)
+	if player:
+		var away_from_player = (global_position - player.global_position).normalized() * 150
+		_update_navigation_target(global_position + away_from_player)
+		print("Stuck-Lösung: Gegner versucht, sich kurzzeitig vom Spieler wegzubewegen.")
+		
+		# Nach kurzer Zeit wieder das ursprüngliche Ziel anvisieren
+		await get_tree().create_timer(0.5).timeout
+		if is_instance_valid(player):
+			_update_navigation_target(player.global_position)
+
+
+# ============================================================================
 # ENEMY BEHAVIOR FUNCTIONS
 # ============================================================================
+
+
 
 func _standard_behavior() -> void:
 	"""Standard drone - intelligent chase with tactics"""
@@ -255,7 +372,8 @@ func _standard_behavior() -> void:
 
 	# Navigate intelligently
 	var direction = _get_navigation_direction(target_pos)
-	velocity = direction * current_speed
+	# velocity wird jetzt durch den NavigationAgent gesetzt
+
 
 
 func _fast_drone_behavior() -> void:
@@ -269,7 +387,8 @@ func _fast_drone_behavior() -> void:
 	else:
 		# Normal chase
 		var direction = _get_navigation_direction(player.global_position)
-		velocity = direction * current_speed
+		# velocity wird jetzt durch den NavigationAgent gesetzt
+
 
 
 func _dash_attack() -> void:
@@ -296,7 +415,8 @@ func _heavy_drone_behavior() -> void:
 
 	# Slow chase
 	var direction = _get_navigation_direction(player.global_position)
-	velocity = direction * current_speed
+	# velocity wird jetzt durch den NavigationAgent gesetzt
+
 
 
 func _shoot_projectile() -> void:
@@ -331,21 +451,23 @@ func _shoot_projectile() -> void:
 
 func _sniper_behavior() -> void:
 	"""Sniper drone - keep distance and shoot laser"""
-	var to_player = player.global_position - global_position
-	var distance = to_player.length()
+	if not nav_agent or not is_instance_valid(player): return
+
+	var distance = global_position.distance_to(player.global_position)
 	var direction = _get_navigation_direction(player.global_position)
 
 	# Maintain distance between 360-600 pixels
 	if distance < 360.0:
 		# Too close - back away
-		velocity = -direction * current_speed
+		nav_agent.target_position = global_position - direction * 100
 	elif distance > 600.0:
 		# Too far - move closer
-		velocity = direction * current_speed * 0.5
+		nav_agent.target_position = player.global_position
 	else:
 		# Perfect distance - strafe around player
 		var perpendicular = Vector2(-direction.y, direction.x)
-		velocity = perpendicular * current_speed * 0.3
+		nav_agent.target_position = global_position + perpendicular * 100
+
 
 	# Shoot laser every 3 seconds
 	if attack_cooldown <= 0:
@@ -397,8 +519,9 @@ func _shoot_laser() -> void:
 
 func _kamikaze_behavior() -> void:
 	"""Kamikaze drone - accelerate when close to player"""
-	var to_player = player.global_position - global_position
-	var distance = to_player.length()
+	if not nav_agent or not is_instance_valid(player): return
+
+	var distance = global_position.distance_to(player.global_position)
 	var direction = _get_navigation_direction(player.global_position)
 
 	# Check for contact - explode immediately!
@@ -408,14 +531,20 @@ func _kamikaze_behavior() -> void:
 
 	# Accelerate when within 180 pixels
 	if distance < 180.0:
-		velocity = direction * current_speed * 2.0  # Double speed
+		# Beschleunige in Richtung des nächsten Navigationspunktes
+		var move_direction = (nav_agent.get_next_path_position() - global_position).normalized()
+		var desired_velocity = move_direction * current_speed * 2.0 # Double speed
+		nav_agent.set_velocity(desired_velocity)
+		
 		# Increase danger core pulse speed
 		if visual_node:
 			var danger_core = visual_node.get_node_or_null("DangerCore")
 			if danger_core:
 				danger_core.modulate = Color(2.0, 0.0, 0.0, 1.0)
 	else:
-		velocity = direction * current_speed
+		# Normale Geschwindigkeit wird durch _physics_process gehandhabt
+		pass
+
 
 
 func _create_visual() -> void:
@@ -448,6 +577,23 @@ func _create_sprite_visual() -> void:
 
 	# Apply size multiplier (sprites are already 40x40)
 	sprite.scale = Vector2(enemy_size, enemy_size)
+
+
+func _get_sprite_path_for_enemy() -> String:
+	"""Get correct sprite path based on drone type metadata"""
+	var drone_type = get_meta("drone_type", "standard")
+
+	match drone_type:
+		"kamikaze":
+			return "res://assets/anim/drone_kamikaze.tres"
+		"sniper":
+			return "res://assets/anim/drone_sniper.tres"
+		"fast":
+			return "res://assets/anim/drone_fast.tres"
+		"heavy":
+			return "res://assets/anim/drone_heavy.tres"
+		_:
+			return "res://assets/anim/drone_standard.tres"
 
 
 func _create_colorrect_visual() -> void:
@@ -704,67 +850,18 @@ func _start_rotation_animation() -> void:
 		tween.tween_property(visual_node, "rotation", TAU, 2.0)
 
 func _get_navigation_direction(target_position: Vector2) -> Vector2:
-	var to_target: Vector2 = target_position - global_position
-	if to_target.length() < 0.1:
+	# Diese Funktion wird jetzt durch den NavigationAgent gesteuert.
+	# Wir setzen das Ziel und der Agent berechnet den Pfad.
+	_update_navigation_target(target_position)
+	
+	if nav_agent.is_navigation_finished():
 		return Vector2.ZERO
-
-	var desired_dir: Vector2 = to_target.normalized()
-	var space_state := get_world_2d().direct_space_state
-
-	var direct_query := PhysicsRayQueryParameters2D.create(global_position, target_position)
-	direct_query.exclude = [self.get_rid()]
-	direct_query.collision_mask = 4
-	var direct_hit := space_state.intersect_ray(direct_query)
-	if direct_hit.is_empty():
-		return desired_dir
-
-	var probe_distance: float = max(256.0, to_target.length())
-	var best_dir: Vector2 = Vector2.ZERO
-	var best_clearance: float = 0.0
-	var angles: Array = [15, -15, 30, -30, 45, -45, 60, -60, 75, -75, 90, -90, 120, -120, 150, -150, 180]
-
-	for angle in angles:
-		var candidate_dir: Vector2 = desired_dir.rotated(deg_to_rad(angle)).normalized()
-		var ray_end: Vector2 = global_position + candidate_dir * probe_distance
-		var alt_query := PhysicsRayQueryParameters2D.create(global_position, ray_end)
-		alt_query.exclude = [self.get_rid()]
-		alt_query.collision_mask = 4
-		var result := space_state.intersect_ray(alt_query)
-		var clearance: float = probe_distance
-		if result and result.has("position"):
-			clearance = (result.position - global_position).length()
-
-		if clearance > best_clearance:
-			best_clearance = clearance
-			best_dir = candidate_dir
-
-	if best_dir == Vector2.ZERO:
-		return desired_dir
-
-	return best_dir
+		
+	return (nav_agent.get_next_path_position() - global_position).normalized()
 
 
 func _apply_wall_avoidance(delta: float) -> void:
-	if velocity.length() <= 0.01:
-		return
-
-	var space_state := get_world_2d().direct_space_state
-	var move_dir: Vector2 = velocity.normalized()
-	var probe_distance: float = max(48.0, velocity.length() * delta * 2.0)
-	var ray_end: Vector2 = global_position + move_dir * probe_distance
-	var query := PhysicsRayQueryParameters2D.create(global_position, ray_end)
-	query.exclude = [self.get_rid()]
-	query.collision_mask = 4
-
-	var hit := space_state.intersect_ray(query)
-	if hit and hit.has("normal"):
-		var normal: Vector2 = hit.normal
-		var slide_dir := velocity - normal * velocity.dot(normal)
-		if slide_dir.length() > 0.1:
-			velocity = slide_dir.normalized() * current_speed
-		else:
-			var perp := normal.rotated(deg_to_rad(90.0)).normalized()
-			velocity = perp * current_speed * 0.5
+	pass # Ersetzt durch NavigationAgent2D
 
 
 # ============================================================================
@@ -772,34 +869,8 @@ func _apply_wall_avoidance(delta: float) -> void:
 # ============================================================================
 
 func _apply_separation_force(delta: float) -> void:
-	"""Prevent enemies from clumping together (flocking separation)"""
-	var separation_radius: float = 60.0
-	var separation_strength: float = 80.0
-	var separation_force: Vector2 = Vector2.ZERO
-	var neighbor_count: int = 0
+	pass # Ersetzt durch NavigationAgent2D Avoidance
 
-	# Find nearby enemies
-	var nearby_enemies = get_tree().get_nodes_in_group("enemies")
-	for enemy in nearby_enemies:
-		if not is_instance_valid(enemy) or enemy == self:
-			continue
-
-		var enemy_node = enemy as Node2D
-		if enemy_node == null:
-			continue
-
-		var distance = global_position.distance_to(enemy_node.global_position)
-		if distance < separation_radius and distance > 0.1:
-			# Push away from neighbor
-			var away_dir = (global_position - enemy_node.global_position).normalized()
-			var push_strength = (separation_radius - distance) / separation_radius
-			separation_force += away_dir * push_strength
-			neighbor_count += 1
-
-	# Apply separation force
-	if neighbor_count > 0:
-		separation_force = separation_force / neighbor_count
-		velocity += separation_force * separation_strength * delta
 
 
 func _find_best_target() -> CharacterBody2D:
