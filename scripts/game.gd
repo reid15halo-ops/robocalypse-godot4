@@ -105,6 +105,8 @@ func _ready() -> void:
 	map_generator = preload("res://scripts/CityLayoutGenerator.gd").new()
 	map_generator.name = "MapGenerator"
 	add_child(map_generator)
+	# CRITICAL FIX: Manually call _ready() since we instantiated from script
+	map_generator._ready()
 	var map_data = map_generator.generate_map()
 
 	# Bake navigation mesh
@@ -853,34 +855,34 @@ func _on_game_over() -> void:
 
 
 func _update_health_bar() -> void:
-    """Update health bar display"""
-    if player and health_bar:
-        health_bar.max_value = player.max_health
-        health_bar.value = player.current_health
-        _ensure_health_value_label()
-        if health_value_label:
-            health_value_label.text = UI_STRINGS.hud_hp(int(player.current_health), int(player.max_health))
+	"""Update health bar display"""
+	if player and health_bar:
+		health_bar.max_value = player.max_health
+		health_bar.value = player.current_health
+		_ensure_health_value_label()
+		if health_value_label:
+			health_value_label.text = UI_STRINGS.hud_hp(int(player.current_health), int(player.max_health))
 
-    _update_shield_bar()
+	_update_shield_bar()
 
 
 func _update_shield_bar() -> void:
-    if not shield_bar or not player:
-        return
+	if not shield_bar or not player:
+		return
 
-    shield_bar.max_value = player.max_health
-    shield_bar.value = clamp(float(player.shield_hp), 0.0, float(player.max_health))
-    shield_bar.visible = shield_bar.value > 0.0
-    _ensure_shield_value_label()
-    if shield_value_label:
-        shield_value_label.visible = shield_bar.visible
-        shield_value_label.text = UI_STRINGS.hud_shield(int(player.shield_hp))
+	shield_bar.max_value = player.max_health
+	shield_bar.value = clamp(float(player.shield_hp), 0.0, float(player.max_health))
+	shield_bar.visible = shield_bar.value > 0.0
+	_ensure_shield_value_label()
+	if shield_value_label:
+		shield_value_label.visible = shield_bar.visible
+		shield_value_label.text = UI_STRINGS.hud_shield(int(player.shield_hp))
 
 
 func _configure_health_and_shield_bars() -> void:
-    if health_bar:
-        var health_fg := StyleBoxFlat.new()
-        health_fg.bg_color = Color(0.75, 0.15, 0.15, 0.95)
+	if health_bar:
+		var health_fg := StyleBoxFlat.new()
+		health_fg.bg_color = Color(0.75, 0.15, 0.15, 0.95)
 		health_fg.corner_radius_top_left = 6
 		health_fg.corner_radius_top_right = 6
 		health_fg.corner_radius_bottom_left = 6
@@ -895,13 +897,13 @@ func _configure_health_and_shield_bars() -> void:
 		health_bg.corner_radius_top_right = 6
 		health_bg.corner_radius_bottom_left = 6
 		health_bg.corner_radius_bottom_right = 6
-        health_bar.add_theme_stylebox_override("bg", health_bg)
-        health_bar.show_percentage = false
-        _ensure_health_value_label()
+		health_bar.add_theme_stylebox_override("bg", health_bg)
+		health_bar.show_percentage = false
+		_ensure_health_value_label()
 
-    if shield_bar:
-        var shield_fg := StyleBoxFlat.new()
-        shield_fg.bg_color = Color(0.25, 0.7, 1.0, 0.85)
+	if shield_bar:
+		var shield_fg := StyleBoxFlat.new()
+		shield_fg.bg_color = Color(0.25, 0.7, 1.0, 0.85)
 		shield_fg.corner_radius_top_left = 6
 		shield_fg.corner_radius_top_right = 6
 		shield_fg.corner_radius_bottom_left = 6
@@ -918,67 +920,67 @@ func _configure_health_and_shield_bars() -> void:
 		shield_bg.corner_radius_bottom_right = 6
 		shield_bar.add_theme_stylebox_override("bg", shield_bg)
 
-        shield_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
-        shield_bar.show_percentage = false
-        shield_bar.visible = false
-        if player:
-            shield_bar.max_value = player.max_health
-        shield_bar.value = 0
-        if health_bar:
-            shield_bar.z_index = health_bar.z_index + 1
-        else:
-            shield_bar.z_index = 1
-        shield_bar.move_to_front()
+		shield_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		shield_bar.show_percentage = false
+		shield_bar.visible = false
+		if player:
+			shield_bar.max_value = player.max_health
+		shield_bar.value = 0
+		if health_bar:
+			shield_bar.z_index = health_bar.z_index + 1
+		else:
+			shield_bar.z_index = 1
+		shield_bar.move_to_front()
 
-        if health_bar:
-            shield_bar.offset_left = health_bar.offset_left
-            shield_bar.offset_right = health_bar.offset_right
-            shield_bar.offset_top = health_bar.offset_top
-            shield_bar.offset_bottom = health_bar.offset_bottom
+		if health_bar:
+			shield_bar.offset_left = health_bar.offset_left
+			shield_bar.offset_right = health_bar.offset_right
+			shield_bar.offset_top = health_bar.offset_top
+			shield_bar.offset_bottom = health_bar.offset_bottom
 
-        _update_shield_bar()
-        _ensure_shield_value_label()
+		_update_shield_bar()
+		_ensure_shield_value_label()
 
 
 func _on_player_shield_changed(_new_value: int) -> void:
-    _update_shield_bar()
+	_update_shield_bar()
 
 # Ensure a centered label on the health bar showing absolute HP
 func _ensure_health_value_label() -> void:
-    if health_bar == null:
-        return
-    if health_value_label and is_instance_valid(health_value_label):
-        return
-    var label := Label.new()
-    label.name = "HealthValueLabel"
-    label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-    label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-    label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-    label.size_flags_vertical = Control.SIZE_EXPAND_FILL
-    label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-    health_bar.add_child(label)
-    label.anchors_preset = Control.PRESET_FULL_RECT
-    label.z_index = (health_bar.z_index if health_bar else 0) + 2
-    health_value_label = label
+	if health_bar == null:
+	    return
+	if health_value_label and is_instance_valid(health_value_label):
+	    return
+	var label := Label.new()
+	label.name = "HealthValueLabel"
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	label.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	health_bar.add_child(label)
+	label.anchors_preset = Control.PRESET_FULL_RECT
+	label.z_index = (health_bar.z_index if health_bar else 0) + 2
+	health_value_label = label
 
 # Ensure a centered label on the shield bar showing shield amount
 func _ensure_shield_value_label() -> void:
-    if shield_bar == null:
-        return
-    if shield_value_label and is_instance_valid(shield_value_label):
-        return
-    var label := Label.new()
-    label.name = "ShieldValueLabel"
-    label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-    label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-    label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-    label.size_flags_vertical = Control.SIZE_EXPAND_FILL
-    label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-    label.add_theme_color_override("font_color", Color(0.85, 0.95, 1.0, 0.95))
-    shield_bar.add_child(label)
-    label.anchors_preset = Control.PRESET_FULL_RECT
-    label.z_index = (shield_bar.z_index if shield_bar else 0) + 2
-    shield_value_label = label
+	if shield_bar == null:
+	    return
+	if shield_value_label and is_instance_valid(shield_value_label):
+	    return
+	var label := Label.new()
+	label.name = "ShieldValueLabel"
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	label.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	label.add_theme_color_override("font_color", Color(0.85, 0.95, 1.0, 0.95))
+	shield_bar.add_child(label)
+	label.anchors_preset = Control.PRESET_FULL_RECT
+	label.z_index = (shield_bar.z_index if shield_bar else 0) + 2
+	shield_value_label = label
 
 
 func _update_score_label() -> void:

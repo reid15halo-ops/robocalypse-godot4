@@ -14,19 +14,22 @@ class MapData extends RefCounted:
 	var cell_size: int
 	var generation_seed: int
 	var arena_bounds: Rect2
-	
+	var player_spawn_position: Vector2  # Player starting position
+
 	# Optimierte, vorab berechnete Spawn-Punkte
 	var spawn_points_all: Array[Vector2] = []
 	var spawn_points_ambush: Array[Vector2] = []
 	var spawn_points_perimeter: Array[Vector2] = []
 	var spawn_points_open_area: Array[Vector2] = []
-	
+
 	func _init(gen_seed: int, _grid: Array, _grid_size: Vector2i, _cell_size: int):
 		self.generation_seed = gen_seed
 		self.grid = _grid
 		self.grid_size = _grid_size
 		self.cell_size = _cell_size
 		self.arena_bounds = Rect2(Vector2.ZERO, grid_size * cell_size)
+		# Center player spawn for better visibility (viewport is 1280x720)
+		self.player_spawn_position = Vector2(640, 360)  # Viewport center
 
 	# Effiziente öffentliche API für den Zugriff auf Spawn-Punkte
 	func get_strategic_spawn_position(spawn_type: String) -> Vector2:
@@ -91,7 +94,6 @@ const STREET_WIDTH_CELLS: int = 2
 
 # Container nodes
 var walls_container: Node2D = null
-@onready var tile_map: TileMap = $TileMap # NEU: Referenz zur TileMap
 var zones_container: Node2D = null
 var city_boundary: StaticBody2D = null
 
@@ -128,17 +130,20 @@ var zone_definitions := [
 # INITIALISIERUNG
 # ============================================================================
 
+# Floor rendering container
+var floor_container: Node2D = null
+
 func _ready() -> void:
 	"""Initialize generator"""
 	walls_container = Node2D.new()
 	walls_container.name = "Walls"
 	add_child(walls_container)
 
-	# floor_container wird nicht mehr benötigt, da TileMap verwendet wird
-	# floor_container = Node2D.new()
-	# floor_container.name = "Floor"
-	# floor_container.z_index = -5
-	# add_child(floor_container)
+	# Floor container for Sprite2D tiles
+	floor_container = Node2D.new()
+	floor_container.name = "Floor"
+	floor_container.z_index = -5
+	add_child(floor_container)
 
 	zones_container = Node2D.new()
 	zones_container.name = "Zones"
@@ -449,6 +454,63 @@ func _create_zone_visual(cell_x: int, cell_y: int, size: Vector2i, zone_def: Dic
 # ============================================================================
 # VISUELLE BODENGENERIERUNG
 # ============================================================================
+
+func _generate_tilemap_visuals() -> void:
+	"""Generate floor tiles using optimized Sprite2D approach"""
+	# Preload all tile textures (cached by Godot)
+	var street_tiles: Array[Texture2D] = [
+		preload("res://assets/tiles/floor/gemini/misc_image.png"),
+		preload("res://assets/tiles/floor/gemini/misc_image_01.png"),
+		preload("res://assets/tiles/floor/gemini/misc_image_02.png"),
+		preload("res://assets/tiles/floor/gemini/misc_image_03.png")
+	]
+
+	var avenue_tiles: Array[Texture2D] = [
+		preload("res://assets/tiles/floor/gemini/misc_image2.png"),
+		preload("res://assets/tiles/floor/gemini/misc_image2_01.png"),
+		preload("res://assets/tiles/floor/gemini/misc_image2_02.png"),
+		preload("res://assets/tiles/floor/gemini/misc_image2_03.png")
+	]
+
+	var building_tiles: Array[Texture2D] = [
+		preload("res://assets/tiles/floor/gemini/misc_image3.png"),
+		preload("res://assets/tiles/floor/gemini/misc_image3_01.png"),
+		preload("res://assets/tiles/floor/gemini/misc_image3_02.png"),
+		preload("res://assets/tiles/floor/gemini/misc_image3_03.png")
+	]
+
+	# Generate tiles with proper centering
+	for y in range(GRID_HEIGHT):
+		for x in range(GRID_WIDTH):
+			var cell_type = grid[y][x]
+			var floor_sprite = Sprite2D.new()
+
+			# Position at cell center
+			floor_sprite.position = Vector2(
+				x * CELL_SIZE + CELL_SIZE / 2.0,
+				y * CELL_SIZE + CELL_SIZE / 2.0
+			)
+
+			# Select texture based on cell type with variation
+			match cell_type:
+				CellType.STREET:
+					# 90% street tiles, 10% avenue tiles for variation
+					if randf() > 0.1:
+						floor_sprite.texture = street_tiles[randi() % street_tiles.size()]
+					else:
+						floor_sprite.texture = avenue_tiles[randi() % avenue_tiles.size()]
+
+				CellType.BUILDING:
+					floor_sprite.texture = building_tiles[randi() % building_tiles.size()]
+
+				_:
+					# Default to dark building tile
+					floor_sprite.texture = building_tiles[0]
+
+			floor_container.add_child(floor_sprite)
+
+	print("Floor tiles generated: ", GRID_WIDTH * GRID_HEIGHT, " Sprite2D tiles with Gemini textures")
+	floor_container.visible = true
 
 func _generate_floor_visuals() -> void:
 	"""Generate floor tiles for visual feedback"""
