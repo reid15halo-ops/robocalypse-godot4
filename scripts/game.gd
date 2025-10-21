@@ -275,8 +275,8 @@ func _process(delta: float) -> void:
 		pause_menu.visible = GameManager.is_paused
 		return
 
-	# Don't process game logic if paused, game over, or in wave break
-	if GameManager.is_paused or GameManager.is_game_over or in_wave_break:
+	# Don't process game logic if paused, game over, in wave break, or route selection active
+	if GameManager.is_paused or GameManager.is_game_over or in_wave_break or route_selection_active:
 		return
 
 	# Update timers
@@ -1270,8 +1270,8 @@ func _show_route_selection() -> void:
 		return
 
 	route_selection_active = true
-	spawn_timer = 0.0
-	wave_timer = 0.0
+	# Don't reset timers - just pause them by setting route_selection_active
+	# spawn_timer and wave_timer will naturally pause due to the check in _process()
 
 	_set_enemies_frozen(true)
 
