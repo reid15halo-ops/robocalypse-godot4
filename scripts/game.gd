@@ -1891,14 +1891,22 @@ func _spawn_consoles() -> void:
 	if console_spawned:
 		return
 
-	var arena_rect: Rect2 = map_generator.get_arena_bounds()
 	print("Spawning console for Hacker")
 
 	var console = console_scene.instantiate()
-	var spawn_margin := 180.0
-	var spawn_x := randf_range(arena_rect.position.x + spawn_margin, arena_rect.position.x + arena_rect.size.x - spawn_margin)
-	var spawn_y := randf_range(arena_rect.position.y + spawn_margin, arena_rect.position.y + arena_rect.size.y - spawn_margin)
-	console.global_position = Vector2(spawn_x, spawn_y)
+	
+	# Use street spawn points instead of random position
+	var spawn_points = _get_street_spawn_points()
+	if spawn_points.is_empty():
+		push_warning("Game: No spawn points available for console. Using fallback.")
+		var arena_rect: Rect2 = map_generator.get_arena_bounds()
+		var spawn_margin := 180.0
+		var spawn_x := randf_range(arena_rect.position.x + spawn_margin, arena_rect.position.x + arena_rect.size.x - spawn_margin)
+		var spawn_y := randf_range(arena_rect.position.y + spawn_margin, arena_rect.position.y + arena_rect.size.y - spawn_margin)
+		console.global_position = Vector2(spawn_x, spawn_y)
+	else:
+		# Pick a random spawn point from street locations
+		console.global_position = spawn_points.pick_random()
 	console.console_hacked.connect(_on_console_hacked)
 	add_child(console)
 	active_consoles.append(console)
