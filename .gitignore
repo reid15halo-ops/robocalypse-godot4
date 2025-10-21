@@ -1,11 +1,19 @@
 # Godot 4+ specific ignores
 .godot/
+!.godot/exported/
+!.godot/override.cfg
+!.godot/project.godot
 .nomedia
 
 # Godot-specific ignores
-.import/
+# *.import files are often kept in version control for team collaboration in Godot 4.
+# If you wish to ignore them, uncomment the line below.
+# *.import
 export.cfg
 export_credentials.cfg
+
+# Godot-generated resource unique IDs
+*.uid
 
 # Imported translations (automatically generated from CSV files)
 *.translation
@@ -14,3 +22,35 @@ export_credentials.cfg
 .mono/
 data_*/
 mono_crash.*.json
+bin/
+obj/
+
+# IDE & Editor specific
+.vscode/
+.idea/
+.vs/
+
+# Python cache
+*.pyc
+*.pyo
+__pycache__/
+
+# General ignores
+*.o
+*.lo
+*.la
+*.so
+*.a
+*.dll
+*.swp
+*~
+*.bak
+
+# User-specific settings that should not be committed
+.env
+secrets.cfg
+
+# Exported binaries
+export/
+build/
+dist/

@@ -13,26 +13,38 @@ const CELL_SIZE: int = 128  # pixels per grid cell
 const MIN_STREET_WIDTH: int = 5  # Minimum width for primary avenues
 
 const STREET_TILES: Array[Texture2D] = [
-	preload("res://assets/tiles/floor/tile_factory_64.png"),
-	preload("res://assets/tiles/floor/tile_scrapyard_64.png"),
-	preload("res://assets/tiles/floor/tile_control_center_64.png")
+	# Gemini-generierte Tiles (Hauptboden)
+	preload("res://assets/tiles/floor/gemini/misc_image.png"),
+	preload("res://assets/tiles/floor/gemini/misc_image_01.png"),
+	preload("res://assets/tiles/floor/gemini/misc_image_02.png"),
+	preload("res://assets/tiles/floor/gemini/misc_image_03.png"),
+	preload("res://assets/tiles/floor/gemini/misc_image1.png"),
+	preload("res://assets/tiles/floor/gemini/misc_image1_01.png"),
+	preload("res://assets/tiles/floor/gemini/misc_image1_02.png")
 ]
 const AVENUE_TILES: Array[Texture2D] = [
-	preload("res://assets/tiles/floor/tile_control_center_64.png"),
-	preload("res://assets/tiles/floor/tile_server_room_64.png")
+	# High-Tech Tiles für Hauptstraßen
+	preload("res://assets/tiles/floor/gemini/control_center_clean_brushed_metal_with_led_strip_accents_bluecya_02.png"),
+	preload("res://assets/tiles/floor/gemini/misc_image2.png"),
+	preload("res://assets/tiles/floor/gemini/misc_image2_01.png"),
+	preload("res://assets/tiles/floor/gemini/misc_image2_02.png")
 ]
 const BUILDING_TILES: Array[Texture2D] = [
-	preload("res://assets/tiles/floor/tile_server_room_64.png")
+	preload("res://assets/tiles/floor/gemini/misc_image3.png"),
+	preload("res://assets/tiles/floor/gemini/misc_image3_01.png"),
+	preload("res://assets/tiles/floor/gemini/misc_image3_02.png"),
+	preload("res://assets/tiles/floor/gemini/misc_image3_03.png")
 ]
 const DIAGONAL_TILES: Array[Texture2D] = [
-	preload("res://assets/tiles/floor/tile_control_center_64.png"),
-	preload("res://assets/tiles/floor/tile_factory_64.png")
+	preload("res://assets/tiles/floor/gemini/misc_image1_03.png"),
+	preload("res://assets/tiles/floor/gemini/misc_image2_03.png"),
+	preload("res://assets/tiles/floor/gemini/misc_image3_02.png")
 ]
 const ALLEY_TILES: Array[Texture2D] = [
-	preload("res://assets/tiles/floor/tile_scrapyard_64.png"),
-	preload("res://assets/tiles/floor/tile_factory_64.png")
+	preload("res://assets/tiles/floor/gemini/misc_image_02.png"),
+	preload("res://assets/tiles/floor/gemini/misc_image_03.png")
 ]
-const DEFAULT_TILE: Texture2D = preload("res://assets/tiles/floor/tile_factory_64.png")
+const DEFAULT_TILE: Texture2D = preload("res://assets/tiles/floor/gemini/misc_image.png")
 const WARNING_TILE_HORIZONTAL: Texture2D = preload("res://assets/tiles/floor/tile_wall_warning_h_64.png")
 const WARNING_TILE_VERTICAL: Texture2D = preload("res://assets/tiles/floor/tile_wall_warning_v_64.png")
 
@@ -49,6 +61,7 @@ enum CellType {
 # Grid data structure
 var grid: Array[Array] = []
 var spawn_points: Array[Vector2] = []
+var tile_texture_map: Dictionary = {}  # Vector2i -> Texture2D (tracks which texture is at each grid position)
 
 # Wall configuration
 const WALL_THICKNESS: int = 24
@@ -99,6 +112,9 @@ func generate_map() -> void:
 
 	# 5. Collect spawn points
 	_collect_spawn_points()
+
+	# 6. Spawn shop terminals
+	_spawn_shop_terminals()
 
 	print("=== MapGenerator: Generation complete ===")
 	_print_grid_debug()
@@ -350,9 +366,15 @@ func _generate_floor_visuals() -> void:
 	if not floor_container:
 		return
 
+	tile_texture_map.clear()  # Reset texture map
+
 	for y in range(GRID_HEIGHT):
 		for x in range(GRID_WIDTH):
 			var tile_texture: Texture2D = _get_tile_texture_for(grid[y][x], x, y)
+
+			# Track which texture is used at this position
+			if tile_texture:
+				tile_texture_map[Vector2i(x, y)] = tile_texture
 
 			if tile_texture:
 				var tile_sprite: Sprite2D = Sprite2D.new()
@@ -772,3 +794,80 @@ func _collect_spawn_points() -> void:
 		avenue_points.append(get_spawn_position())
 
 	spawn_points = avenue_points
+
+
+func get_control_center_positions() -> Array[Vector2]:
+	"""Get all world positions where control_center tiles are located"""
+	var control_center_tile: Texture2D = preload("res://assets/tiles/floor/tile_control_center_64.png")
+	var positions: Array[Vector2] = []
+
+	for grid_pos in tile_texture_map.keys():
+		var texture: Texture2D = tile_texture_map[grid_pos]
+		if texture == control_center_tile:
+			# Convert grid position to world position (center of tile)
+			var world_pos: Vector2 = Vector2((grid_pos.x + 0.5) * CELL_SIZE, (grid_pos.y + 0.5) * CELL_SIZE)
+			positions.append(world_pos)
+
+	print("Found ", positions.size(), " control_center tiles for console spawning")
+	return positions
+
+
+# ============================================================================
+# SHOP TERMINAL SPAWNING
+# ============================================================================
+
+const SHOP_TERMINAL_SCENE = preload("res://scenes/ShopTerminal.tscn")
+
+func _spawn_shop_terminals() -> void:
+	"""Spawn 1-3 shop terminals at valid positions"""
+	var terminal_count = randi_range(1, 3)
+	var spawned = 0
+	var max_attempts = 50
+
+	print("Attempting to spawn ", terminal_count, " shop terminals...")
+
+	for i in range(terminal_count):
+		var attempts = 0
+		while attempts < max_attempts:
+			attempts += 1
+
+			# Get random position from spawn points
+			if spawn_points.is_empty():
+				print("No spawn points available for terminals")
+				break
+
+			var spawn_pos = spawn_points[randi() % spawn_points.size()]
+
+			# Check if position is valid (not too close to other terminals)
+			if _is_valid_terminal_position(spawn_pos):
+				var terminal = SHOP_TERMINAL_SCENE.instantiate()
+				terminal.position = spawn_pos
+				add_child(terminal)
+				spawned += 1
+				print("Shop terminal ", spawned, " spawned at ", spawn_pos)
+				break
+
+		if attempts >= max_attempts:
+			print("Failed to find valid position for terminal ", i + 1)
+
+	print("Successfully spawned ", spawned, " shop terminals")
+
+
+func _is_valid_terminal_position(pos: Vector2) -> bool:
+	"""Check if position is valid for a terminal"""
+	# Check minimum distance from other terminals
+	var min_distance = CELL_SIZE * 4  # At least 4 cells apart
+
+	for child in get_children():
+		if child.is_in_group("shop_terminal"):
+			if child.position.distance_to(pos) < min_distance:
+				return false
+
+	# Check if position is not too close to edges
+	var arena_size = Vector2(GRID_WIDTH * CELL_SIZE, GRID_HEIGHT * CELL_SIZE)
+	if pos.x < CELL_SIZE * 2 or pos.x > arena_size.x - CELL_SIZE * 2:
+		return false
+	if pos.y < CELL_SIZE * 2 or pos.y > arena_size.y - CELL_SIZE * 2:
+		return false
+
+	return true

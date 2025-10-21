@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/Users/reid1/source/repos/reid15halo-ops/robocalypse-godot4/**)",
+      "Bash(godot:*)",
+      "Bash(explorer.exe project.godot)",
+      "Bash(cmd.exe /c start project.godot)",
+      "Read(//c/Program Files/**)",
+      "Bash(find:*)",
+      "Bash(powershell -Command:*)",
+      "Bash(tasklist:*)",
+      "Bash(findstr:*)",
+      "Read(//c/Users/reid1/Downloads/**)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

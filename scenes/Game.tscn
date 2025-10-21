@@ -1,7 +1,8 @@
-[gd_scene load_steps=4 format=3 uid="uid://dw5k7n8m2q3vx"]
+[gd_scene load_steps=5 format=3 uid="uid://dw5k7n8m2q3vx"]
 
 [ext_resource type="Script" path="res://scripts/game.gd" id="1_game"]
 [ext_resource type="PackedScene" uid="uid://c4route_selection01" path="res://scenes/RouteSelection.tscn" id="4_route_selection"]
+[ext_resource type="PackedScene" uid="uid://c8q7k3m9n5pqr" path="res://scenes/ShopUI.tscn" id="5_shop_ui"]
 
 [sub_resource type="RectangleShape2D" id="1_boundary_horizontal"]
 size = Vector2(1792, 64)
@@ -133,6 +134,15 @@ offset_top = 50.0
 offset_right = 1260.0
 offset_bottom = 73.0
 text = "Time: 60s"
+horizontal_alignment = 2
+
+[node name="DroneShopLabel" type="Label" parent="UI"]
+visible = false
+offset_left = 1060.0
+offset_top = 80.0
+offset_right = 1260.0
+offset_bottom = 103.0
+text = "Drone Shops: 0"
 horizontal_alignment = 2
 
 [node name="PauseMenu" type="Control" parent="UI"]
@@ -281,6 +291,9 @@ layout_mode = 2
 text = "Main Menu"
 
 [node name="RouteSelection" parent="UI" instance=ExtResource("4_route_selection")]
+
+[node name="ShopUI" parent="UI" instance=ExtResource("5_shop_ui")]
+visible = false
 
 [connection signal="pressed" from="UI/PauseMenu/VBoxContainer/ResumeButton" to="." method="_on_resume_pressed"]
 [connection signal="pressed" from="UI/PauseMenu/VBoxContainer/QuitButton" to="." method="_on_pause_quit_pressed"]

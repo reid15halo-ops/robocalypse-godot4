@@ -1,0 +1,123 @@
+[gd_scene load_steps=10 format=3 uid="uid://cw8x9y1z2a3b4"]
+
+[ext_resource type="Script" path="res://scripts/boss_core.gd" id="1_core"]
+[ext_resource type="Resource" path="res://resources/boss_stats_default.tres" id="2_stats"]
+[ext_resource type="PackedScene" path="res://scenes/Enemy.tscn" id="3_enemy"]
+[ext_resource type="PackedScene" path="res://scenes/EnemyProjectile.tscn" id="4_projectile"]
+[ext_resource type="Script" path="res://scripts/boss_state_machine_component.gd" id="5_state"]
+[ext_resource type="Script" path="res://scripts/boss_attack_controller_component.gd" id="6_attack"]
+[ext_resource type="Script" path="res://scripts/boss_effect_manager_component.gd" id="7_effect"]
+[ext_resource type="Script" path="res://scripts/boss_visuals_component.gd" id="8_visual"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_boss"]
+size = Vector2(50, 50)
+
+[node name="Boss" type="CharacterBody2D"]
+script = ExtResource("1_core")
+stats = ExtResource("2_stats")
+enemy_scene = ExtResource("3_enemy")
+enemy_projectile_scene = ExtResource("4_projectile")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("RectangleShape2D_boss")
+
+[node name="StateMachine" type="Node" parent="."]
+script = ExtResource("5_state")
+
+[node name="AttackController" type="Node" parent="."]
+script = ExtResource("6_attack")
+
+[node name="EffectManager" type="Node" parent="."]
+script = ExtResource("7_effect")
+
+[node name="Visuals" type="Node2D" parent="."]
+script = ExtResource("8_visual")
+
+[node name="Body" type="ColorRect" parent="Visuals"]
+offset_left = -25.0
+offset_top = -20.0
+offset_right = 25.0
+offset_bottom = 25.0
+color = Color(0.8, 0, 0.8, 1)
+
+[node name="Head" type="ColorRect" parent="Visuals"]
+offset_left = -20.0
+offset_top = -30.0
+offset_right = 20.0
+offset_bottom = -20.0
+color = Color(0.7, 0, 0.7, 1)
+
+[node name="EyeLeft" type="ColorRect" parent="Visuals"]
+offset_left = -15.0
+offset_top = -28.0
+offset_right = -8.0
+offset_bottom = -22.0
+color = Color(1, 0, 0, 1)
+
+[node name="EyeRight" type="ColorRect" parent="Visuals"]
+offset_left = 8.0
+offset_top = -28.0
+offset_right = 15.0
+offset_bottom = -22.0
+color = Color(1, 0, 0, 1)
+
+[node name="ShoulderLeft" type="ColorRect" parent="Visuals"]
+offset_left = -30.0
+offset_top = -15.0
+offset_right = -25.0
+offset_bottom = 10.0
+color = Color(0.6, 0, 0.6, 1)
+
+[node name="ShoulderRight" type="ColorRect" parent="Visuals"]
+offset_left = 25.0
+offset_top = -15.0
+offset_right = 30.0
+offset_bottom = 10.0
+color = Color(0.6, 0, 0.6, 1)
+
+[node name="WeaponLeft" type="ColorRect" parent="Visuals"]
+offset_left = -35.0
+offset_top = -5.0
+offset_right = -30.0
+offset_bottom = 15.0
+color = Color(0.3, 0.3, 0.3, 1)
+
+[node name="WeaponRight" type="ColorRect" parent="Visuals"]
+offset_left = 30.0
+offset_top = -5.0
+offset_right = 35.0
+offset_bottom = 15.0
+color = Color(0.3, 0.3, 0.3, 1)
+
+[node name="CoreGlow" type="ColorRect" parent="Visuals"]
+offset_left = -8.0
+offset_top = -5.0
+offset_right = 8.0
+offset_bottom = 10.0
+color = Color(1, 0.2, 1, 1)
+
+[node name="HealthBar" type="Control" parent="."]
+layout_mode = 3
+anchors_preset = 0
+offset_left = -30.0
+offset_top = -40.0
+offset_right = 30.0
+offset_bottom = -35.0
+
+[node name="Background" type="ColorRect" parent="HealthBar"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.2, 0.2, 0.2, 1)
+
+[node name="Bar" type="ColorRect" parent="HealthBar"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(1, 0, 0, 1)

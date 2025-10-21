@@ -33,6 +33,7 @@ class ItemData:
 	var max_level: int = 1  # Max upgrade level (1 = not upgradable, 3 = up to level 3)
 	var level_effects: Array = []  # Array of Dictionaries for level 1, 2, 3 effects
 	var level_descriptions: Array = []  # Descriptions for each level
+	var base_price: int = 0  # Base shop price in Scrap
 
 	func _init(p_id: String, p_name: String, p_desc: String, p_type: ItemType, p_rarity: ItemRarity, p_color: Color, p_effects: Dictionary, p_icon_path: String = ""):
 		id = p_id
@@ -43,6 +44,45 @@ class ItemData:
 		icon_color = p_color
 		icon_path = p_icon_path
 		effects = p_effects
+
+		# Auto-calculate base price from rarity and type
+		base_price = _calculate_base_price()
+
+	func _calculate_base_price() -> int:
+		"""Calculate base price from rarity and type"""
+		var price = 0
+
+		# Base price by rarity
+		match rarity:
+			ItemRarity.COMMON:
+				price = 50
+			ItemRarity.RARE:
+				price = 150
+			ItemRarity.EPIC:
+				price = 400
+
+		# Type modifiers
+		match type:
+			ItemType.WEAPON:
+				price = int(price * 1.5)  # Weapons cost more
+			ItemType.DEFENSIVE:
+				price = int(price * 1.2)
+			ItemType.SUPPORT:
+				price = int(price * 1.3)
+			ItemType.STAT:
+				price = int(price * 1.1)
+			ItemType.DRUG:
+				price = int(price * 0.8)  # Drugs cost less (risk/reward)
+			ItemType.DRONE_SUMMON:
+				price = int(price * 2.0)  # Drones expensive
+			ItemType.DRONE_UPGRADE:
+				price = int(price * 1.2)
+			ItemType.WEAPON_UPGRADE:
+				price = int(price * 1.4)
+			ItemType.ABILITY:
+				price = int(price * 1.6)
+
+		return price
 
 	func get_effects_for_level(level: int) -> Dictionary:
 		"""Get effects for specific level"""
@@ -55,6 +95,10 @@ class ItemData:
 		if level_descriptions.size() > 0 and level >= 1 and level <= level_descriptions.size():
 			return level_descriptions[level - 1]
 		return description  # Fallback to base description
+
+	func get_shop_price(shop_type_modifier: float = 1.0) -> int:
+		"""Get price for a specific shop type (with modifier)"""
+		return int(base_price * shop_type_modifier)
 
 # All available items
 var items: Array[ItemData] = []
@@ -76,25 +120,27 @@ func _initialize_items() -> void:
 		{"weapon_type": "laser"}
 	))
 
-	items.append(ItemData.new(
-		"rocket_launcher",
-		"Rocket Launcher",
-		"Explosive area damage",
-		ItemType.WEAPON,
-		ItemRarity.RARE,
-		Color(1.0, 0.4, 0.0),
-		{"weapon_type": "rocket"}
-	))
+	# TEMPORARILY DISABLED: Other weapons (potential crash risk)
+	# TODO: Re-enable once stability is confirmed
+	# items.append(ItemData.new(
+	# 	"rocket_launcher",
+	# 	"Rocket Launcher",
+	# 	"Explosive area damage",
+	# 	ItemType.WEAPON,
+	# 	ItemRarity.RARE,
+	# 	Color(1.0, 0.4, 0.0),
+	# 	{"weapon_type": "rocket"}
+	# ))
 
-	items.append(ItemData.new(
-		"shotgun",
-		"Shotgun",
-		"Close range spread damage",
-		ItemType.WEAPON,
-		ItemRarity.COMMON,
-		Color(1.0, 1.0, 0.2),
-		{"weapon_type": "shotgun"}
-	))
+	# items.append(ItemData.new(
+	# 	"shotgun",
+	# 	"Shotgun",
+	# 	"Close range spread damage",
+	# 	ItemType.WEAPON,
+	# 	ItemRarity.COMMON,
+	# 	Color(1.0, 1.0, 0.2),
+	# 	{"weapon_type": "shotgun"}
+	# ))
 
 	# DEFENSIVE
 	items.append(ItemData.new(
@@ -789,6 +835,183 @@ func _initialize_items() -> void:
 		{"upgrade_weapon": true},
 		"res://assets/sprites/items/item_weapon_upgrade_32.png"
 	))
+
+	# LASER-SPECIFIC UPGRADES
+	var laser_damage = ItemData.new(
+		"laser_damage_boost",
+		"High-Energy Capacitors",
+		"[LASER] +50% Laser Damage",
+		ItemType.WEAPON_UPGRADE,
+		ItemRarity.RARE,
+		Color(0.2, 0.9, 1.0),
+		{"laser_damage_mult": 1.5}
+	)
+	laser_damage.max_level = 3
+	laser_damage.level_effects = [
+		{"laser_damage_mult": 1.5},
+		{"laser_damage_mult": 2.0},
+		{"laser_damage_mult": 3.0}
+	]
+	laser_damage.level_descriptions = [
+		"[LV1] +50% Laser Damage",
+		"[LV2] +100% Laser Damage",
+		"[LV3] +200% Laser Damage"
+	]
+	items.append(laser_damage)
+
+	var laser_firerate = ItemData.new(
+		"laser_firerate_boost",
+		"Overclocked Laser Array",
+		"[LASER] +50% Fire Rate",
+		ItemType.WEAPON_UPGRADE,
+		ItemRarity.RARE,
+		Color(1.0, 0.3, 0.3),
+		{"laser_firerate_mult": 1.5}
+	)
+	laser_firerate.max_level = 3
+	laser_firerate.level_effects = [
+		{"laser_firerate_mult": 1.5},
+		{"laser_firerate_mult": 2.0},
+		{"laser_firerate_mult": 3.0}
+	]
+	laser_firerate.level_descriptions = [
+		"[LV1] +50% Fire Rate",
+		"[LV2] +100% Fire Rate",
+		"[LV3] +200% Fire Rate"
+	]
+	items.append(laser_firerate)
+
+	var laser_penetration = ItemData.new(
+		"laser_penetration_boost",
+		"Quantum Penetrator",
+		"[LASER] +3 Penetrations",
+		ItemType.WEAPON_UPGRADE,
+		ItemRarity.EPIC,
+		Color(0.8, 0.0, 1.0),
+		{"laser_penetration_bonus": 3}
+	)
+	laser_penetration.max_level = 3
+	laser_penetration.level_effects = [
+		{"laser_penetration_bonus": 3},
+		{"laser_penetration_bonus": 6},
+		{"laser_penetration_bonus": 10, "infinite_pierce": true}
+	]
+	laser_penetration.level_descriptions = [
+		"[LV1] +3 Penetrations",
+		"[LV2] +6 Penetrations",
+		"[LV3] +10 Penetrations + Infinite Pierce"
+	]
+	items.append(laser_penetration)
+
+	var laser_chain = ItemData.new(
+		"laser_chain_lightning",
+		"Chain Lightning Protocol",
+		"[LASER] Lasers chain to 2 nearby enemies",
+		ItemType.WEAPON_UPGRADE,
+		ItemRarity.EPIC,
+		Color(1.0, 1.0, 0.0),
+		{"laser_chain_count": 2, "laser_chain_range": 150.0}
+	)
+	laser_chain.max_level = 3
+	laser_chain.level_effects = [
+		{"laser_chain_count": 2, "laser_chain_range": 150.0},
+		{"laser_chain_count": 4, "laser_chain_range": 200.0},
+		{"laser_chain_count": 6, "laser_chain_range": 300.0, "chain_damage_mult": 1.0}
+	]
+	laser_chain.level_descriptions = [
+		"[LV1] Chain to 2 enemies (150px)",
+		"[LV2] Chain to 4 enemies (200px)",
+		"[LV3] Chain to 6 enemies (300px) + Full Damage"
+	]
+	items.append(laser_chain)
+
+	var laser_split = ItemData.new(
+		"laser_split_beam",
+		"Prism Splitter",
+		"[LASER] Lasers split into 3 beams on hit",
+		ItemType.WEAPON_UPGRADE,
+		ItemRarity.EPIC,
+		Color(0.0, 1.0, 1.0),
+		{"laser_split_count": 3, "laser_split_angle": 45.0}
+	)
+	laser_split.max_level = 3
+	laser_split.level_effects = [
+		{"laser_split_count": 3, "laser_split_angle": 45.0},
+		{"laser_split_count": 5, "laser_split_angle": 60.0},
+		{"laser_split_count": 8, "laser_split_angle": 90.0, "split_homing": 0.2}
+	]
+	laser_split.level_descriptions = [
+		"[LV1] Split into 3 beams (45°)",
+		"[LV2] Split into 5 beams (60°)",
+		"[LV3] Split into 8 beams (90°) + Homing"
+	]
+	items.append(laser_split)
+
+	var laser_beam_mode = ItemData.new(
+		"laser_beam_mode",
+		"Continuous Beam Emitter",
+		"[LASER] Laser becomes continuous beam",
+		ItemType.WEAPON_UPGRADE,
+		ItemRarity.EPIC,
+		Color(1.0, 0.0, 0.5),
+		{"laser_beam_mode": true, "beam_width": 10.0, "beam_dps": 30}
+	)
+	laser_beam_mode.max_level = 3
+	laser_beam_mode.level_effects = [
+		{"laser_beam_mode": true, "beam_width": 10.0, "beam_dps": 30},
+		{"laser_beam_mode": true, "beam_width": 20.0, "beam_dps": 60},
+		{"laser_beam_mode": true, "beam_width": 40.0, "beam_dps": 120, "beam_push": 200.0}
+	]
+	laser_beam_mode.level_descriptions = [
+		"[LV1] Continuous beam (30 DPS)",
+		"[LV2] Wider beam (60 DPS)",
+		"[LV3] Massive beam (120 DPS) + Push enemies"
+	]
+	items.append(laser_beam_mode)
+
+	var laser_overcharge = ItemData.new(
+		"laser_overcharge",
+		"Overcharge Module",
+		"[LASER] Every 5th shot deals 300% damage + AOE",
+		ItemType.WEAPON_UPGRADE,
+		ItemRarity.EPIC,
+		Color(1.0, 0.5, 0.0),
+		{"laser_overcharge_interval": 5, "overcharge_damage_mult": 3.0, "overcharge_aoe": 100.0}
+	)
+	laser_overcharge.max_level = 3
+	laser_overcharge.level_effects = [
+		{"laser_overcharge_interval": 5, "overcharge_damage_mult": 3.0, "overcharge_aoe": 100.0},
+		{"laser_overcharge_interval": 4, "overcharge_damage_mult": 5.0, "overcharge_aoe": 150.0},
+		{"laser_overcharge_interval": 3, "overcharge_damage_mult": 10.0, "overcharge_aoe": 200.0, "overcharge_stun": 1.0}
+	]
+	laser_overcharge.level_descriptions = [
+		"[LV1] Every 5th shot: 300% DMG + 100px AOE",
+		"[LV2] Every 4th shot: 500% DMG + 150px AOE",
+		"[LV3] Every 3rd shot: 1000% DMG + 200px AOE + 1s Stun"
+	]
+	items.append(laser_overcharge)
+
+	var laser_size = ItemData.new(
+		"laser_size_boost",
+		"Wide-Beam Emitter",
+		"[LASER] 50% Wider laser beams",
+		ItemType.WEAPON_UPGRADE,
+		ItemRarity.COMMON,
+		Color(0.5, 0.8, 1.0),
+		{"laser_width_mult": 1.5}
+	)
+	laser_size.max_level = 3
+	laser_size.level_effects = [
+		{"laser_width_mult": 1.5},
+		{"laser_width_mult": 2.0},
+		{"laser_width_mult": 3.0}
+	]
+	laser_size.level_descriptions = [
+		"[LV1] +50% Beam Width",
+		"[LV2] +100% Beam Width",
+		"[LV3] +200% Beam Width"
+	]
+	items.append(laser_size)
 
 	# ABILITIES (Q, W, E, R)
 	items.append(ItemData.new(

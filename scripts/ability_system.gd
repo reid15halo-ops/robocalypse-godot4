@@ -41,9 +41,12 @@ var ability_cooldowns: Dictionary = {
 }
 
 # Mana system
-var current_mana: int = 100
+var current_mana: float = 100.0
 var max_mana: int = 100
 var mana_regen_rate: float = 5.0  # per second
+
+# Active buff tracking (prevent stacking)
+var active_buffs: Dictionary = {}  # buff_type -> is_active
 
 # Signals
 signal ability_used(slot: String)
@@ -56,6 +59,8 @@ var abilities_database: Array = []
 
 func _ready() -> void:
 	_initialize_abilities()
+	# Equip default starter abilities (can be unlocked later through gameplay)
+	equip_starter_abilities()
 
 
 func _initialize_abilities() -> void:
@@ -164,8 +169,13 @@ func _process(delta: float) -> void:
 
 	# Mana regen
 	if current_mana < max_mana:
-		current_mana = min(current_mana + int(mana_regen_rate * delta), max_mana)
-		mana_changed.emit(current_mana, max_mana)
+		current_mana = min(current_mana + (mana_regen_rate * delta), max_mana)
+		mana_changed.emit(int(current_mana), max_mana)
+
+	# Safety: Ensure mana never goes negative
+	if current_mana < 0:
+		current_mana = 0.0
+		mana_changed.emit(0, max_mana)
 
 
 func equip_ability(ability_id: String, slot: String) -> bool:
@@ -199,30 +209,38 @@ func use_ability(slot: String, player: Node) -> bool:
 		return false
 
 	# Check mana
-	if current_mana < ability.mana_cost:
-		print("Not enough mana! Need ", ability.mana_cost, ", have ", current_mana)
+	if int(current_mana) < ability.mana_cost:
+		print("Not enough mana! Need ", ability.mana_cost, ", have ", int(current_mana))
 		AudioManager.play_error_sound()  # Windows error
 		return false
 
-	# Execute ability
-	var success = await _execute_ability(ability, player)
+	# Special check for buffs - prevent using if already active
+	if ability.ability_type == "buff":
+		if active_buffs.get(ability.id, false):
+			print("Buff already active! Cannot recast until it expires.")
+			AudioManager.play_error_sound()
+			return false
 
-	if success:
-		# Deduct mana
-		current_mana -= ability.mana_cost
-		mana_changed.emit(current_mana, max_mana)
+	# IMPORTANT: Set cooldown BEFORE executing ability to prevent spam
+	ability_cooldowns[slot] = ability.cooldown
+	ability_cooldown_started.emit(slot, ability.cooldown)
 
-		# Start cooldown
-		ability_cooldowns[slot] = ability.cooldown
-		ability_cooldown_started.emit(slot, ability.cooldown)
-		ability_used.emit(slot)
+	# Deduct mana BEFORE executing ability
+	current_mana = max(0.0, current_mana - ability.mana_cost)
+	mana_changed.emit(int(current_mana), max_mana)
 
-		print("Used ability: ", ability.name)
+	# Emit signal
+	ability_used.emit(slot)
 
-		# Play ability cast sound (Quack)
-		AudioManager.play_ability_sound()
+	print("Used ability: ", ability.name)
 
-	return success
+	# Play ability cast sound (Quack)
+	AudioManager.play_ability_sound()
+
+	# Execute ability (async)
+	_execute_ability(ability, player)
+
+	return true
 
 
 func _execute_ability(ability: AbilityData, player: Node) -> bool:
@@ -392,17 +410,26 @@ func _execute_heal(ability: AbilityData, player: Node) -> bool:
 
 func _execute_buff(ability: AbilityData, player: Node) -> bool:
 	"""Apply buff to player"""
+	# Prevent stacking - if buff is already active, don't apply again
+	var buff_id = ability.id
+	if active_buffs.get(buff_id, false):
+		print("Buff already active: ", ability.name, " - Stacking prevented!")
+		return false
+
 	var damage_mult = ability.parameters.get("damage_mult", 2.0)
 	var speed_mult = ability.parameters.get("speed_mult", 1.5)
 	var duration = ability.parameters.get("duration", 8.0)
 
-	# Store original values
+	# Mark buff as active
+	active_buffs[buff_id] = true
+
+	# Store original values (from base_speed if available)
 	var original_damage = player.melee_damage
-	var original_speed = player.speed
+	var original_speed = player.base_speed if player.get("base_speed") != null else player.speed
 
 	# Apply buff
-	player.melee_damage = int(player.melee_damage * damage_mult)
-	player.speed = player.speed * speed_mult
+	player.melee_damage = int(original_damage * damage_mult)
+	player.speed = original_speed * speed_mult
 	player.modulate = Color(2.0, 0.5, 0.5)  # Red glow
 
 	print("OVERDRIVE ACTIVATED! +", int((damage_mult - 1) * 100), "% Damage, +", int((speed_mult - 1) * 100), "% Speed")
@@ -414,6 +441,7 @@ func _execute_buff(ability: AbilityData, player: Node) -> bool:
 		player.melee_damage = original_damage
 		player.speed = original_speed
 		player.modulate = Color.WHITE
+		active_buffs[buff_id] = false  # Mark as inactive
 		print("Overdrive ended")
 
 	return true
@@ -443,3 +471,17 @@ func get_cooldown_percent(slot: String) -> float:
 func get_cooldown_remaining(slot: String) -> float:
 	"""Get remaining cooldown in seconds"""
 	return ability_cooldowns[slot]
+
+
+func equip_starter_abilities() -> void:
+	"""Equip default starter abilities for new players"""
+	# Q - Combat Roll (Dash)
+	equip_ability("dash", "Q")
+
+	# E - Energy Shield
+	equip_ability("energy_shield", "E")
+
+	# R - Overdrive (Ultimate)
+	equip_ability("rage_mode", "R")
+
+	print("Starter abilities equipped: Q-Dash, E-Shield, R-Overdrive")

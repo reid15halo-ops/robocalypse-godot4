@@ -1,0 +1,59 @@
+[gd_resource type="Resource" script_class="BossStats" load_steps=2 format=3 uid="uid://b7g8h9i0j1k2l"]
+
+[ext_resource type="Script" path="res://scripts/boss_stats.gd" id="1_stats"]
+
+[resource]
+script = ExtResource("1_stats")
+max_health = 12000
+base_speed = 140.0
+score_value = 100
+scrap_award = 50
+collision_layer = 2
+collision_mask = 14
+arena_size = 1792
+phase_2_threshold = 0.66
+phase_3_threshold = 0.33
+phase_1_speed_mult = 1.0
+phase_2_speed_mult = 1.3
+phase_3_speed_mult = 1.6
+phase_1_regen = 0.0
+phase_2_regen = 0.5
+phase_3_regen = 1.2
+minion_cooldown = 6.0
+minion_base_count = 3
+minion_min_distance = 120.0
+minion_max_distance = 240.0
+phase_1_minions = 3
+phase_2_minions = 5
+phase_3_minions = 7
+shield_max_value = 900.0
+shield_duration = 7.0
+shield_activation_health_percent = 0.5
+shield_cooldown = 15.0
+gravity_well_strength = 450.0
+gravity_well_pull_distance = 120.0
+gravity_well_damage = 35
+gravity_well_duration = 4.0
+gravity_well_cooldown = 8.0
+gravity_damage_tick_rate = 0.5
+plasma_wall_damage_radius = 140.0
+plasma_wall_base_damage = 30
+plasma_wall_damage_per_phase = 10
+plasma_wall_duration = 6.0
+plasma_wall_cooldown = 10.0
+plasma_wall_count_phase_1 = 2
+plasma_wall_count_phase_2 = 3
+plasma_wall_count_phase_3 = 4
+laser_damage = 25
+laser_cooldown = 3.5
+laser_speed = 400.0
+laser_range = 800.0
+special_attack_cooldown = 4.5
+charge_attack_speed = 300.0
+charge_attack_damage = 40
+stomp_attack_radius = 200.0
+stomp_attack_damage = 50
+health_bar_max_width = 60.0
+sprite_enabled = true
+damage_flash_duration = 0.15
+death_animation_duration = 1.0

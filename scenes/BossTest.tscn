@@ -1,0 +1,17 @@
+[gd_scene load_steps=4 format=3 uid="uid://test_boss_scene_123"]
+
+[ext_resource type="PackedScene" path="res://scenes/Boss.tscn" id="1_boss"]
+[ext_resource type="PackedScene" path="res://scenes/Player.tscn" id="2_player"]
+[ext_resource type="Script" path="res://scripts/boss_test.gd" id="3_script"]
+
+[node name="BossTest" type="Node2D"]
+script = ExtResource("3_script")
+
+[node name="Player" parent="." instance=ExtResource("2_player")]
+position = Vector2(400, 300)
+
+[node name="Boss" parent="." instance=ExtResource("1_boss")]
+position = Vector2(600, 300)
+
+[node name="Camera2D" type="Camera2D" parent="Player"]
+zoom = Vector2(1.5, 1.5)
