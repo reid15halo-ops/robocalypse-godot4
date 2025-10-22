@@ -7,7 +7,48 @@ All critical bugs reported by the user have been fixed and additional improvemen
 
 ## âœ… Critical Bug Fixes
 
-### 1. **Drone Can Now Take Damage** âœ“
+### 1. **Game No Longer Freezes on Start (Issue #31)** âœ"
+**Problem:** After clicking "Start Game", the game would freeze on the pause screen with non-functional buttons. The game appeared stuck but Resume/Main Menu buttons were clickable but did nothing.
+
+**Root Cause:** Pause state desynchronization between `GameManager.is_paused` and `get_tree().paused`:
+- `GameManager.reset_game()` set `is_paused = false` but didn't reset `get_tree().paused`
+- If `get_tree().paused` was `true` from a previous session (pause, time control, etc.), it remained `true`
+- Game scene would load with `pause_menu.visible = false` but tree still paused
+- Only nodes with `PROCESS_MODE_ALWAYS` would run, but pause menu was hidden
+- Result: Game appeared frozen with no visible UI
+
+**Fix 1 (Primary):** Added explicit tree unpause in `GameManager.reset_game()`:
+```gdscript
+func reset_game() -> void:
+    # ... reset variables ...
+
+    # CRITICAL FIX: Ensure tree pause state matches is_paused flag
+    get_tree().paused = false
+
+    score_changed.emit(score)
+```
+
+**Fix 2 (Safety):** Added safety unpause in `game.gd._ready()`:
+```gdscript
+func _ready() -> void:
+    # SAFETY FIX: Ensure tree is not paused when game scene loads
+    get_tree().paused = false
+
+    # ... rest of initialization ...
+```
+
+**Locations:**
+- `scripts/GameManager.gd:41-44`
+- `scripts/game.gd:88-90`
+
+**Testing:**
+- Basic start: Main Menu → Start Game (works immediately)
+- Pause cycle: Start → Pause → Resume → Quit → Start (no freeze)
+- Game over restart: Start → Die → Restart (unpaused)
+
+---
+
+### 2. **Drone Can Now Take Damage** âœ"
 **Problem:** Hacker's controllable drone was invincible, couldn't lose HP or die.
 
 **Fix:** Added enemy collision detection in `controllable_drone.gd:120-127`
@@ -26,7 +67,7 @@ if not invulnerable:
 
 ---
 
-### 2. **Hacker Takes Damage in Drone Mode** âœ“
+### 3. **Hacker Takes Damage in Drone Mode** âœ"
 **Problem:** When controlling the drone, the Hacker character became invincible.
 
 **Fix:** Changed from disabling `_physics_process` to using metadata flag for AI control.
@@ -53,7 +94,7 @@ This keeps damage detection and physics active while only disabling player input
 
 ---
 
-### 3. **Walls Now Block Movement** âœ“
+### 4. **Walls Now Block Movement** âœ"
 **Problem:** Boundaries had `collision_mask = 0`, blocking nothing.
 
 **Fix:** Updated all 4 walls in `Game.tscn` to have `collision_mask = 3` (blocks Player layer 1 + Enemy layer 2)
@@ -68,7 +109,7 @@ This keeps damage detection and physics active while only disabling player input
 
 ---
 
-### 4. **Boss Significantly Buffed** âœ“
+### 5. **Boss Significantly Buffed** âœ"
 **Problem:** Boss died too quickly, wasn't challenging.
 
 **Massive Stat Increases:**
@@ -88,7 +129,7 @@ This keeps damage detection and physics active while only disabling player input
 
 ---
 
-### 5. **Arena Boundary Enforced** ✓
+### 6. **Arena Boundary Enforced** ✓
 **Problem:** Player and controllable drone could still leave the arena when the scene loaded because no boundary collider existed yet and their collision masks ignored the boundary layer.
 
 **Fixes:**
