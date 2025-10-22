@@ -10,23 +10,28 @@ Robocalypse is a 2D top-down survival shooter built with Godot 4.5. Players figh
 
 ```bash
 # Open Godot Editor (from project root)
-"C:\Users\reid1\Documents\Godot_v4.5-stable_win64.exe" --path "C:\Users\122798\OneDrive\Documents\Sonstiges\Robo\robocalypse-godot4"
+godot --path "."
 
 # Run game directly (headless mode for testing)
-"C:\Users\reid1\Documents\Godot_v4.5-stable_win64_console.exe" --headless --path "." --quit-after 3
+godot --headless --path "." --quit-after 3
 
 # Validate a specific script
-"C:\Users\reid1\Documents\Godot_v4.5-stable_win64_console.exe" --headless --path "." --script scripts/player.gd --check-only --quit-after 3
+godot --headless --path "." --script scripts/player.gd --check-only --quit-after 3
 
 # Run with verbose output for debugging
-"C:\Users\reid1\Documents\Godot_v4.5-stable_win64_console.exe" --headless --verbose --quit-after 5
+godot --headless --verbose --path "." --quit-after 5
+
+# Run main scene for playtesting
+godot --path "." scenes/MainMenu.tscn
 ```
+
+**Note**: Replace `godot` with the full path to your Godot 4.5 executable if not in PATH. On Windows, this is typically `Godot_v4.5-stable_win64.exe` (editor) or `Godot_v4.5-stable_win64_console.exe` (console).
 
 ## Core Architecture
 
 ### Autoload Singletons (Critical Dependencies)
 
-The project relies heavily on 15 autoloaded singletons defined in [project.godot](project.godot) lines 18-35. These must be initialized in the correct order:
+The project relies heavily on 16 autoloaded singletons defined in [project.godot](project.godot) lines 18-36. These must be initialized in the correct order:
 
 1. **GameManager** - Core game state (score, wave count, player reference, route modifiers)
 2. **ItemDatabase** - Centralized item definitions and upgrade tiers
@@ -44,6 +49,7 @@ The project relies heavily on 15 autoloaded singletons defined in [project.godot
 14. **AbilitySystem** - Active abilities (QWER) with cooldowns and mana
 15. **ObjectiveSystem** - Mission/challenge tracking
 16. **MapSystem** - Procedural map difficulty scaling
+17. **LanguageManager** - Internationalization and localization system
 
 **Important**: Any script that needs access to player, score, or game state should reference `GameManager.get_player()` or `GameManager.score`.
 
@@ -171,6 +177,26 @@ Handled by [AffixManager.gd](scripts/AffixManager.gd) and [MinibossSpawner.gd](s
 
 Save file: `user://roboclaust_save.json` (typically `%APPDATA%\Godot\app_userdata\Robocalypse\`)
 
+### Internationalization (i18n)
+
+[LanguageManager](scripts/LanguageManager.gd) handles multi-language support with translation files in `locale/`:
+
+- **Supported Languages**: English (en), German (de), Spanish (es)
+- **Translation Files**:
+  - `locale/strings.en.translation` - English strings
+  - `locale/strings.de.translation` - German strings
+  - `locale/strings.es.translation` - Spanish strings
+- **String Access**: Use [UIStrings.gd](scripts/UIStrings.gd) for centralized UI text keys
+- **Runtime Switching**: `LanguageManager` allows language changes without restart
+
+**Adding a New Language:**
+1. Create new `.csv` file in `localization/` directory with translation keys
+2. Export as `.translation` file in Godot Editor (Import tab)
+3. Add to `project.godot` under `[internationalization]` → `locale/translations`
+4. Update `LanguageManager.gd` to include new language option
+
+**Important**: All user-facing text should use translation keys via `tr("KEY_NAME")` for proper localization support.
+
 ## Godot 4 Specifics
 
 ### Physics and Movement
@@ -213,26 +239,16 @@ Defined in [project.godot](project.godot) lines 43-128:
 
 ## Project Structure
 
-### Scripts Organization
+See **Quick Reference → Directory Structure** section for complete layout.
 
-- `scripts/` - Main game logic
-  - `enemy_types/` - Specialized enemy variants (kamikaze_drone, tank_robot, rusher, etc.)
-  - `map_mods/` - Interactive map objects (turret, barrier, speed_pad, health_station, damage_zone)
+### Editor Tools
 
-### Scenes Organization
+The `tools/` directory contains utilities for asset management:
+- `asset_splitter.gd` - Split sprite sheets into individual tiles
+- `create_tilemap.gd` / `create_new_tilemap.gd` - Tilemap generation
+- `configure_imports.gd` - Batch import configuration
 
-- `scenes/` - All .tscn files
-  - `map_mods/` - Matches scripts/map_mods/ structure
-  - Core scenes: Game, Player, Enemy, MainMenu, CharacterSelect
-
-### Tools
-
-- `tools/` - Editor utilities:
-  - `asset_splitter.gd` - Split sprite sheets into individual tiles
-  - `create_tilemap.gd` / `create_new_tilemap.gd` - Tilemap generation helpers
-  - `configure_imports.gd` - Batch import configuration
-
-Run tools via Godot Editor or headless mode with `--script tools/<name>.gd`.
+Run with: `godot --headless --path "." --script tools/<name>.gd`
 
 ## Common Patterns
 
@@ -258,6 +274,67 @@ Run tools via Godot Editor or headless mode with `--script tools/<name>.gd`.
 3. Add visual feedback (particles, sound)
 4. Update [ability_hud.gd](scripts/ability_hud.gd) UI
 
+## Quick Reference
+
+### Most Commonly Modified Files
+
+| Task | Files to Edit | Documentation |
+|------|--------------|---------------|
+| Add new enemy type | `scripts/enemy_types/<name>.gd`, `scripts/game.gd` (spawn logic) | See [ROBOCALYPSE_DEV_AGENT.md](ROBOCALYPSE_DEV_AGENT.md) Workflow 1 |
+| Add new item | `scripts/item_database.gd`, `scripts/player.gd` (upgrade_item), `scripts/in_game_shop.gd` | See Common Patterns above |
+| Add new ability | `scripts/ability_system.gd`, `scripts/player.gd`, `scripts/ability_hud.gd` | See Common Patterns above |
+| Balance enemy stats | `scripts/enemy_types/<type>.gd` (max_health, speed, damage) | Document in [BUGFIXES.md](BUGFIXES.md) |
+| Adjust wave difficulty | `scripts/game.gd` (spawn_interval, difficulty_multiplier) | Test thoroughly |
+| Add translation | `localization/*.csv`, `scripts/LanguageManager.gd` | See Internationalization above |
+| Fix collision bugs | Check collision_layer/mask in enemy/player .gd or .tscn | See Common Bug Patterns above |
+| Modify UI | `scenes/*.tscn`, `scripts/UIStrings.gd` | Use translation keys |
+
+### Key System Files
+
+| System | Primary File(s) | Purpose |
+|--------|----------------|---------|
+| **Core Game Loop** | `scripts/game.gd` | Wave spawning, enemy pooling, UI management |
+| **Player Controller** | `scripts/player.gd` | Movement, combat, abilities, item effects |
+| **Enemy AI** | `scripts/enemy.gd`, `scripts/improved_enemy.gd` | Base enemy behavior and pathfinding |
+| **Map Generation** | `scripts/MapGenerator.gd`, `scripts/CityLayoutGenerator.gd` | Procedural arena creation |
+| **Persistence** | `scripts/save_manager.gd`, `scripts/meta_progression.gd` | Save/load, between-run upgrades |
+| **Items** | `scripts/item_database.gd` | Item definitions, tiers, effects |
+| **Weapons** | `scripts/weapon_progression.gd` | Melee weapon tree |
+| **Abilities** | `scripts/ability_system.gd` | QWER ability definitions and cooldowns |
+| **Audio** | `scripts/audio_manager.gd`, `scripts/music_manager.gd` | Sound effects and dynamic music |
+| **Localization** | `scripts/LanguageManager.gd`, `scripts/UIStrings.gd` | Multi-language support |
+
+### Directory Structure
+
+```
+robocalypse-godot4/
+├── scripts/
+│   ├── enemy_types/         # Specialized enemy variants
+│   ├── map_mods/           # Interactive map objects
+│   ├── GameManager.gd      # Core singleton
+│   ├── game.gd             # Main game loop
+│   ├── player.gd           # Player controller
+│   └── ...                 # Other systems
+├── scenes/
+│   ├── map_mods/           # Scene files for map objects
+│   ├── Game.tscn           # Main gameplay scene
+│   ├── Player.tscn         # Player scene
+│   ├── MainMenu.tscn       # Main menu
+│   └── ...                 # Other scenes
+├── assets/                 # Sprites, textures
+├── sounds/                 # Audio files
+├── locale/                 # Translation files
+├── localization/           # Translation source CSVs
+└── tools/                  # Editor utilities
+```
+
+### Important GitHub References
+
+- **Issues**: Check [GitHub Issues](https://github.com/reid15halo-ops/robocalypse-godot4/issues) for current TODO items and known bugs
+- **Bug Tracking**: Update [BUGFIXES.md](BUGFIXES.md) when fixing issues
+- **Critical Changes**: Document in [CRITICAL_FIXES_CHANGELOG.md](CRITICAL_FIXES_CHANGELOG.md)
+- **Development Workflows**: See [ROBOCALYPSE_DEV_AGENT.md](ROBOCALYPSE_DEV_AGENT.md) for detailed procedures
+
 ## Performance Considerations
 
 - **Enemy Pooling**: Reuse enemy instances instead of instantiate/free (see [game.gd](scripts/game.gd) lines 39-41)
@@ -265,8 +342,167 @@ Run tools via Godot Editor or headless mode with `--script tools/<name>.gd`.
 - **Viewport Size**: 1280x720 with viewport stretch mode ([project.godot](project.godot) lines 37-41)
 - **Scrap Pickup**: Limited to manageable number, cleaned up when off-screen
 
+## Common Bug Patterns
+
+These are the most frequent issues encountered in the codebase. See [ROBOCALYPSE_DEV_AGENT.md](ROBOCALYPSE_DEV_AGENT.md) for detailed debugging workflows.
+
+### Collision Issues
+
+**Symptoms**: Entity passes through walls/enemies, projectiles don't hit
+
+**Common Causes**:
+- Incorrect `collision_layer` or `collision_mask` settings
+- Missing or disabled CollisionShape2D nodes
+- Wrong node type (Area2D vs CharacterBody2D)
+
+**Fix**:
+```gdscript
+# Player should have:
+collision_layer = 1  # Layer 1: Player
+collision_mask = 14  # Layers 2+4+8 (Enemy + Walls + Items)
+
+# Enemy should have:
+collision_layer = 2  # Layer 2: Enemy
+collision_mask = 13  # Layers 1+4+8 (Player + Walls + Items)
+
+# Walls should have:
+collision_layer = 4  # Layer 3: Walls
+collision_mask = 3   # Layers 1+2 (Player + Enemy)
+```
+
+### Signal Connection Failures
+
+**Symptoms**: Connected function never called, no response to events
+
+**Common Causes**:
+- Signal not declared or misspelled
+- Connection made before node exists in tree
+- Using old Godot 3 syntax (`.connect()` with string)
+
+**Fix**:
+```gdscript
+# Correct Godot 4 syntax
+signal health_changed(new_health: int)
+
+func _ready():
+    # Connect after node is in tree
+    player.health_changed.connect(_on_player_health_changed)
+
+func _on_player_health_changed(new_health: int) -> void:
+    health_bar.value = new_health
+```
+
+### Null Reference Errors
+
+**Symptoms**: "Invalid get index 'property' (on base: 'null instance')"
+
+**Common Causes**:
+- Node freed or not yet instantiated
+- Incorrect node path
+- Weak references becoming null
+
+**Fix**:
+```gdscript
+# Always check before access
+if player == null or not is_instance_valid(player):
+    return
+
+# Use @onready for node references
+@onready var health_bar = $UI/HealthBar
+
+# Use get_node_or_null for optional nodes
+var optional_node = get_node_or_null("Path/To/Node")
+if optional_node:
+    optional_node.do_something()
+```
+
+### Enemy Pooling Mistakes
+
+**Symptoms**: Performance drops, enemies behave incorrectly, memory leaks
+
+**Common Causes**:
+- Instantiating enemies directly instead of using pool
+- Not resetting enemy state when returning to pool
+- Freeing pooled enemies
+
+**Fix**:
+```gdscript
+# WRONG - Never instantiate in gameplay loop
+var enemy = enemy_scene.instantiate()
+add_child(enemy)
+
+# CORRECT - Use pool from game.gd
+func spawn_enemy():
+    for e in enemy_pool:
+        if not e.visible:
+            e.visible = true
+            e.global_position = spawn_pos
+            e.current_health = e.max_health
+            return e
+```
+
+## Testing
+
+### Automated Testing Commands
+
+```bash
+# Validate all scripts for syntax errors
+godot --headless --path "." --script scripts/player.gd --check-only --quit-after 3
+
+# Run game in headless mode (for CI/CD)
+godot --headless --path "." --quit-after 10
+
+# Test specific enemy type
+godot --headless --path "." --script scripts/enemy_types/tank_robot.gd --check-only --quit-after 3
+```
+
+### Critical Test Scenarios
+
+When making changes, manually verify these flows:
+
+1. **Player Movement & Combat**:
+   - WASD movement responsive and smooth
+   - Melee attacks connect with enemies
+   - Health bar updates on damage
+   - Death triggers game over properly
+
+2. **Enemy Behavior**:
+   - Enemies spawn at screen edges
+   - AI follows player correctly
+   - Enemies die at 0 health and drop scrap
+   - No lingering references after death
+
+3. **Wave Progression**:
+   - Waves last 60 seconds
+   - Wave breaks show correct UI (shop/route)
+   - Difficulty scales properly
+   - Boss spawns at wave 5/10/15
+
+4. **Save/Load Persistence**:
+   - Scrap persists between runs
+   - Meta upgrades apply correctly
+   - Character selection saved
+   - No save corruption
+
+### Debugging Tools
+
+- **Godot Console**: Check for errors/warnings during runtime
+- **Profiler**: Monitor performance (`Debug` → `Profiler`)
+- **Remote Scene Tree**: Inspect running game (`Debug` → `Remote`)
+- **Git History**: Check recent changes if new bugs appear
+
 ## Known Issues / Recent Changes
 
 - Minibosses and non-standard walls disabled in commit `0848bdc` (see git log)
 - Route modifiers (affixes) currently disabled
 - Enemy behavior adjustments in latest commit
+
+**For current TODO items and active development tasks**, check the [GitHub Issues](https://github.com/reid15halo-ops/robocalypse-godot4/issues) page.
+
+## Additional Resources
+
+- **[ROBOCALYPSE_DEV_AGENT.md](ROBOCALYPSE_DEV_AGENT.md)**: Detailed development workflows, bug patterns, and code examples
+- **[BUGFIXES.md](BUGFIXES.md)**: Complete changelog of fixes and improvements
+- **[CRITICAL_FIXES_CHANGELOG.md](CRITICAL_FIXES_CHANGELOG.md)**: Breaking changes and critical fixes
+- **[AGENTS.md](AGENTS.md)**: Repository guidelines and coding standards
+- **[GitHub Issues](https://github.com/reid15halo-ops/robocalypse-godot4/issues)**: Active TODO items and bug reports
