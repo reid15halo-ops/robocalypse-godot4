@@ -85,6 +85,10 @@ var map_generator: Node = null
 
 
 func _ready() -> void:
+	# SAFETY FIX (Issue #31): Ensure tree is not paused when game scene loads
+	# This provides additional safety in case reset_game() wasn't called
+	get_tree().paused = false
+
 	# Add to game_scene group for scrap tracking
 	add_to_group("game_scene")
 	active_consoles.clear()

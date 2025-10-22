@@ -40,6 +40,12 @@ func reset_game() -> void:
 	player = null
 	wave_count = 0
 	current_route = RouteModifier.NONE
+
+	# CRITICAL FIX (Issue #31): Ensure tree pause state matches is_paused flag
+	# Without this, get_tree().paused can remain true from previous session,
+	# causing game to freeze on start even though is_paused = false
+	get_tree().paused = false
+
 	score_changed.emit(score)
 	scrap_changed.emit(scrap)
 
