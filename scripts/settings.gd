@@ -47,6 +47,9 @@ func _ready() -> void:
 	
 	# Load settings from SettingsManager
 	_load_settings()
+	
+	# Set initial focus
+	master_slider.grab_focus()
 
 
 func _update_translations() -> void:

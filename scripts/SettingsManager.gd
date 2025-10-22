@@ -88,7 +88,7 @@ func apply_audio_settings() -> void:
 		AudioManager.set_sfx_volume(sfx_volume / 100.0)
 	
 	if MusicManager:
-		MusicManager.set_music_volume(music_volume / 100.0)
+		MusicManager.set_volume_linear(music_volume / 100.0)
 	
 	volume_changed.emit(master_volume / 100.0, music_volume / 100.0, sfx_volume / 100.0)
 
@@ -123,7 +123,7 @@ func set_music_volume(value: int) -> void:
 	"""Set music volume (0-100)"""
 	music_volume = clamp(value, 0, 100)
 	if MusicManager:
-		MusicManager.set_music_volume(music_volume / 100.0)
+		MusicManager.set_volume_linear(music_volume / 100.0)
 	save_settings()
 	volume_changed.emit(master_volume / 100.0, music_volume / 100.0, sfx_volume / 100.0)
 

@@ -18,6 +18,15 @@ func _ready() -> void:
 	$VBoxContainer/SettingsButton.pressed.connect(_on_settings_pressed)
 	$VBoxContainer/CreditsButton.pressed.connect(_on_credits_pressed)
 	$VBoxContainer/QuitButton.pressed.connect(_on_quit_pressed)
+	
+	# Set initial focus
+	$VBoxContainer/StartButton.grab_focus()
+
+
+func _input(event: InputEvent) -> void:
+	"""Handle keyboard input for navigation"""
+	if event.is_action_pressed("ui_cancel"):  # Escape key
+		_on_quit_pressed()
 
 
 func _on_start_pressed() -> void:
