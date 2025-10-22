@@ -1,0 +1,84 @@
+[gd_scene load_steps=2 format=3 uid="uid://credits_scene_001"]
+
+[ext_resource type="Script" path="res://scripts/credits.gd" id="1_credits"]
+
+[node name="Credits" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_credits")
+
+[node name="ColorRect" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.1, 0.1, 0.15, 1)
+
+[node name="MarginContainer" type="MarginContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 100
+theme_override_constants/margin_top = 50
+theme_override_constants/margin_right = 100
+theme_override_constants/margin_bottom = 50
+
+[node name="VBoxContainer" type="VBoxContainer" parent="MarginContainer"]
+layout_mode = 2
+theme_override_constants/separation = 20
+
+[node name="Title" type="Label" parent="MarginContainer/VBoxContainer"]
+layout_mode = 2
+text = "ROBOCALYPSE"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="ScrollContainer" type="ScrollContainer" parent="MarginContainer/VBoxContainer"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="CreditsText" type="RichTextLabel" parent="MarginContainer/VBoxContainer/ScrollContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+bbcode_enabled = true
+text = "[center][font_size=24][b]ROBOCALYPSE[/b][/font_size]
+
+[font_size=18][b]Development[/b][/font_size]
+reid15halo-ops
+
+[font_size=18][b]Art Assets[/b][/font_size]
+OpenGameArt.org
+Kenney.nl
+
+[font_size=18][b]Music[/b][/font_size]
+Freesound.org
+
+[font_size=18][b]Sound Effects[/b][/font_size]
+Freesound.org
+Various meme sounds
+
+[font_size=18][b]Engine[/b][/font_size]
+Godot 4.5
+
+[font_size=18][b]Special Thanks[/b][/font_size]
+Godot Community
+GitHub Copilot
+All playtesters and contributors[/center]"
+fit_content = true
+scroll_active = false
+
+[node name="BackButton" type="Button" parent="MarginContainer/VBoxContainer"]
+layout_mode = 2
+text = "Back to Main Menu"
+
+[connection signal="pressed" from="MarginContainer/VBoxContainer/BackButton" to="." method="_on_back_pressed"]

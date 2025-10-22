@@ -47,7 +47,7 @@ vertical_alignment = 1
 
 [node name="StartButton" type="Button" parent="VBoxContainer"]
 layout_mode = 2
-text = "Start Game"
+text = "PLAY"
 
 [node name="CharacterSelectButton" type="Button" parent="VBoxContainer"]
 layout_mode = 2
@@ -60,6 +60,10 @@ text = "Meta Upgrades"
 [node name="SettingsButton" type="Button" parent="VBoxContainer"]
 layout_mode = 2
 text = "Settings"
+
+[node name="CreditsButton" type="Button" parent="VBoxContainer"]
+layout_mode = 2
+text = "Credits"
 
 [node name="QuitButton" type="Button" parent="VBoxContainer"]
 layout_mode = 2
