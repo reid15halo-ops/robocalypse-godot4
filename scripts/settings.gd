@@ -11,8 +11,18 @@ var master_label: Label
 var sfx_label: Label
 var music_label: Label
 
-# Settings file path
-const SETTINGS_FILE = "user://settings.cfg"
+var language_option: OptionButton
+var fullscreen_check: CheckButton
+var vsync_check: CheckButton
+
+# Language mappings
+const LANGUAGE_NAMES = {
+	"en": "English",
+	"de": "Deutsch",
+	"es": "Español"
+}
+
+const LANGUAGE_CODES = ["en", "de", "es"]
 
 
 func _ready() -> void:
@@ -24,86 +34,121 @@ func _ready() -> void:
 	master_label = $VBoxContainer/MasterVolumeContainer/MasterVolumeLabel
 	sfx_label = $VBoxContainer/SFXVolumeContainer/SFXVolumeLabel
 	music_label = $VBoxContainer/MusicVolumeContainer/MusicVolumeLabel
-
-	# Load saved settings
+	
+	language_option = $VBoxContainer/LanguageContainer/LanguageOption
+	fullscreen_check = $VBoxContainer/VideoContainer/FullscreenCheck
+	vsync_check = $VBoxContainer/VideoContainer/VSyncCheck
+	
+	# Update UI with translations
+	_update_translations()
+	
+	# Setup language dropdown
+	_setup_language_dropdown()
+	
+	# Load settings from SettingsManager
 	_load_settings()
 
 
+func _update_translations() -> void:
+	"""Update all UI text with current translations"""
+	$VBoxContainer/Title.text = tr("SETTINGS_TITLE")
+	$VBoxContainer/LanguageContainer/LanguageLabel.text = tr("SETTINGS_LANGUAGE")
+	fullscreen_check.text = tr("SETTINGS_FULLSCREEN")
+	vsync_check.text = tr("SETTINGS_VSYNC")
+	$VBoxContainer/BackButton.text = tr("SETTINGS_BACK")
+
+
+func _setup_language_dropdown() -> void:
+	"""Setup language dropdown with available languages"""
+	language_option.clear()
+	
+	for code in LANGUAGE_CODES:
+		language_option.add_item(LANGUAGE_NAMES[code])
+	
+	# Select current language
+	var current_lang = LanguageManager.get_current_language()
+	var index = LANGUAGE_CODES.find(current_lang)
+	if index >= 0:
+		language_option.selected = index
+
+
 func _load_settings() -> void:
-	"""Load settings from file"""
-	var config = ConfigFile.new()
-	var err = config.load(SETTINGS_FILE)
-
-	if err == OK:
-		# Load volume settings (0-100 range)
-		var master_vol = config.get_value("audio", "master_volume", 100)
-		var sfx_vol = config.get_value("audio", "sfx_volume", 100)
-		var music_vol = config.get_value("audio", "music_volume", 100)
-
-		# Apply to sliders
-		master_slider.value = master_vol
-		sfx_slider.value = sfx_vol
-		music_slider.value = music_vol
-
-		# Apply to audio managers
-		AudioManager.set_master_volume(master_vol / 100.0)
-		AudioManager.set_sfx_volume(sfx_vol / 100.0)
-
-		if MusicManager:
-			MusicManager.set_music_volume(music_vol / 100.0)
-
+	"""Load settings from SettingsManager"""
+	if SettingsManager:
+		# Load volume settings
+		master_slider.value = SettingsManager.master_volume
+		sfx_slider.value = SettingsManager.sfx_volume
+		music_slider.value = SettingsManager.music_volume
+		
+		# Load video settings
+		fullscreen_check.button_pressed = SettingsManager.fullscreen
+		vsync_check.button_pressed = SettingsManager.vsync
+		
 		# Update labels
 		_update_labels()
-	else:
-		# First time - use defaults (already set in scene)
-		_update_labels()
-
-
-func _save_settings() -> void:
-	"""Save settings to file"""
-	var config = ConfigFile.new()
-
-	# Save volume settings
-	config.set_value("audio", "master_volume", int(master_slider.value))
-	config.set_value("audio", "sfx_volume", int(sfx_slider.value))
-	config.set_value("audio", "music_volume", int(music_slider.value))
-
-	# Save to file
-	config.save(SETTINGS_FILE)
 
 
 func _update_labels() -> void:
 	"""Update volume percentage labels"""
-	master_label.text = "Master Volume: %d%%" % int(master_slider.value)
-	sfx_label.text = "SFX Volume: %d%%" % int(sfx_slider.value)
-	music_label.text = "Music Volume: %d%%" % int(music_slider.value)
+	master_label.text = tr("SETTINGS_MASTER_VOLUME") + ": %d%%" % int(master_slider.value)
+	sfx_label.text = tr("SETTINGS_SFX_VOLUME") + ": %d%%" % int(sfx_slider.value)
+	music_label.text = tr("SETTINGS_MUSIC_VOLUME") + ": %d%%" % int(music_slider.value)
 
 
 func _on_master_volume_changed(value: float) -> void:
 	"""Master volume slider changed"""
-	AudioManager.set_master_volume(value / 100.0)
+	if SettingsManager:
+		SettingsManager.set_master_volume(int(value))
 	_update_labels()
-	_save_settings()
 
 
 func _on_sfx_volume_changed(value: float) -> void:
 	"""SFX volume slider changed"""
-	AudioManager.set_sfx_volume(value / 100.0)
+	if SettingsManager:
+		SettingsManager.set_sfx_volume(int(value))
 	_update_labels()
-	_save_settings()
-
+	
 	# Play test sound
-	AudioManager.play_item_pickup_sound()
+	if AudioManager:
+		AudioManager.play_item_pickup_sound()
 
 
 func _on_music_volume_changed(value: float) -> void:
 	"""Music volume slider changed"""
-	if MusicManager:
-		MusicManager.set_music_volume(value / 100.0)
+	if SettingsManager:
+		SettingsManager.set_music_volume(int(value))
 	_update_labels()
-	_save_settings()
+
+
+func _on_language_selected(index: int) -> void:
+	"""Language dropdown changed"""
+	if index >= 0 and index < LANGUAGE_CODES.size():
+		var new_language = LANGUAGE_CODES[index]
+		if SettingsManager:
+			SettingsManager.set_language(new_language)
+		# Update all UI text
+		_update_translations()
+		_update_labels()
+
+
+func _on_fullscreen_toggled(toggled_on: bool) -> void:
+	"""Fullscreen checkbox toggled"""
+	if SettingsManager:
+		SettingsManager.set_fullscreen(toggled_on)
+
+
+func _on_vsync_toggled(toggled_on: bool) -> void:
+	"""VSync checkbox toggled"""
+	if SettingsManager:
+		SettingsManager.set_vsync(toggled_on)
 
 
 func _on_back_pressed() -> void:
 	"""Return to main menu"""
 	get_tree().change_scene_to_file("res://scenes/MainMenu.tscn")
+
+
+func _input(event: InputEvent) -> void:
+	"""Handle keyboard input for navigation"""
+	if event.is_action_pressed("ui_cancel"):  # Escape key
+		_on_back_pressed()

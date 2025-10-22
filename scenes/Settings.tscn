@@ -92,6 +92,28 @@ value = 100.0
 tick_count = 11
 ticks_on_borders = true
 
+[node name="LanguageContainer" type="VBoxContainer" parent="VBoxContainer"]
+layout_mode = 2
+
+[node name="LanguageLabel" type="Label" parent="VBoxContainer/LanguageContainer"]
+layout_mode = 2
+text = "Language"
+horizontal_alignment = 1
+
+[node name="LanguageOption" type="OptionButton" parent="VBoxContainer/LanguageContainer"]
+layout_mode = 2
+
+[node name="VideoContainer" type="VBoxContainer" parent="VBoxContainer"]
+layout_mode = 2
+
+[node name="FullscreenCheck" type="CheckButton" parent="VBoxContainer/VideoContainer"]
+layout_mode = 2
+text = "Fullscreen"
+
+[node name="VSyncCheck" type="CheckButton" parent="VBoxContainer/VideoContainer"]
+layout_mode = 2
+text = "VSync"
+
 [node name="BackButton" type="Button" parent="VBoxContainer"]
 layout_mode = 2
 text = "Back to Main Menu"
@@ -99,4 +121,7 @@ text = "Back to Main Menu"
 [connection signal="value_changed" from="VBoxContainer/MasterVolumeContainer/MasterVolumeSlider" to="." method="_on_master_volume_changed"]
 [connection signal="value_changed" from="VBoxContainer/SFXVolumeContainer/SFXVolumeSlider" to="." method="_on_sfx_volume_changed"]
 [connection signal="value_changed" from="VBoxContainer/MusicVolumeContainer/MusicVolumeSlider" to="." method="_on_music_volume_changed"]
+[connection signal="item_selected" from="VBoxContainer/LanguageContainer/LanguageOption" to="." method="_on_language_selected"]
+[connection signal="toggled" from="VBoxContainer/VideoContainer/FullscreenCheck" to="." method="_on_fullscreen_toggled"]
+[connection signal="toggled" from="VBoxContainer/VideoContainer/VSyncCheck" to="." method="_on_vsync_toggled"]
 [connection signal="pressed" from="VBoxContainer/BackButton" to="." method="_on_back_pressed"]

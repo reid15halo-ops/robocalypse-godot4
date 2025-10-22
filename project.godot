@@ -37,6 +37,8 @@ ObjectiveSystem="*res://scripts/objective_system.gd"
 MapSystem="*res://scripts/map_system.gd"
 LanguageManager="*res://scripts/LanguageManager.gd"
 ShopManager="*res://scripts/ShopManager.gd"
+SettingsManager="*res://scripts/SettingsManager.gd"
+SceneTransition="*res://scenes/SceneTransition.tscn"
 
 [display]
 
