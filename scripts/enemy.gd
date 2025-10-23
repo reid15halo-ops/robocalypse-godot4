@@ -562,12 +562,12 @@ func _create_sprite_visual() -> void:
 	sprite.centered = true
 	add_child(sprite)
 
-	# Try to load sprite frames based on enemy type
-	var sprite_path = _get_sprite_path_for_enemy()
-	if ResourceLoader.exists(sprite_path):
-		sprite.sprite_frames = load(sprite_path)
-		sprite.play("hover")
-	else:
+	# Call virtual method to set sprite frames
+	# Enemy types override this to load their specific sprites
+	_set_sprite_frames()
+
+	# Verify sprite frames were loaded
+	if sprite.sprite_frames == null:
 		# Fallback to ColorRect if sprite not found
 		sprite.queue_free()
 		sprite = null
@@ -575,25 +575,38 @@ func _create_sprite_visual() -> void:
 		_create_colorrect_visual()
 		return
 
+	# Play default animation
+	if sprite.sprite_frames.has_animation("hover"):
+		sprite.play("hover")
+	elif sprite.sprite_frames.has_animation("idle"):
+		sprite.play("idle")
+
 	# Apply size multiplier (sprites are already 40x40)
 	sprite.scale = Vector2(enemy_size, enemy_size)
 
 
-func _get_sprite_path_for_enemy() -> String:
-	"""Get correct sprite path based on drone type metadata"""
+func _set_sprite_frames() -> void:
+	"""Virtual method for enemy types to override with their specific sprite loading.
+	Base implementation uses metadata-based fallback for backward compatibility."""
 	var drone_type = get_meta("drone_type", "standard")
+	var sprite_path = ""
 
 	match drone_type:
 		"kamikaze":
-			return "res://assets/anim/drone_kamikaze.tres"
+			sprite_path = "res://assets/anim/drone_kamikaze.tres"
 		"sniper":
-			return "res://assets/anim/drone_sniper.tres"
+			sprite_path = "res://assets/anim/drone_sniper.tres"
 		"fast":
-			return "res://assets/anim/drone_fast.tres"
+			sprite_path = "res://assets/anim/drone_fast.tres"
 		"heavy":
-			return "res://assets/anim/drone_heavy.tres"
+			sprite_path = "res://assets/anim/drone_heavy.tres"
 		_:
-			return "res://assets/anim/drone_standard.tres"
+			sprite_path = "res://assets/anim/drone_standard.tres"
+
+	if ResourceLoader.exists(sprite_path):
+		sprite.sprite_frames = load(sprite_path)
+	else:
+		push_warning("Sprite frames not found: " + sprite_path)
 
 
 func _create_colorrect_visual() -> void:

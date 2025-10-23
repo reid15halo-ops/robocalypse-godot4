@@ -6,7 +6,6 @@ extends Area2D
 @export var max_speed: float = 500.0
 @export var acceleration: float = 900.0
 
-var game: Node = null
 var player: CharacterBody2D = null
 var velocity: Vector2 = Vector2.ZERO
 var bob_phase: float = randf() * TAU
@@ -24,6 +23,7 @@ func _ready() -> void:
 	collision_layer = 8  # Items
 	collision_mask = 1   # Player
 
+	# prefer GameManager autoload for global access
 	player = GameManager.get_player()
 	pickup_radius_squared = pickup_radius * pickup_radius
 	magnet_radius_squared = magnet_radius * magnet_radius
@@ -68,7 +68,13 @@ func _on_body_entered(body: Node) -> void:
 
 
 func _collect() -> void:
-	if game and game.has_method("on_scrap_collected"):
+	# Prefer GameManager autoload. Fall back to local 'game' if present.
+	if is_instance_valid(GameManager):
+		if GameManager.has_method("on_scrap_collected"):
+			GameManager.on_scrap_collected(amount)
+		elif GameManager.has_method("add_scrap"):
+			GameManager.add_scrap(amount)
+	elif game and game.has_method("on_scrap_collected"):
 		game.on_scrap_collected(amount)
 	elif game and game.has_method("add_scrap"):
 		game.add_scrap(amount)

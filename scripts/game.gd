@@ -85,10 +85,21 @@ var map_generator: Node = null
 
 
 func _ready() -> void:
-	# SAFETY FIX (Issue #31): Ensure tree is not paused when game scene loads
-	# This provides additional safety in case reset_game() wasn't called
+	# Ensure the tree is unpaused and time scale normalized on scene start.
+	# Combine previous fixes: reset GameManager flag, unpause tree, and reset time scale.
+	# Also hide any menus immediately to avoid visible paused UI on load.
 	get_tree().paused = false
+	GameManager.is_paused = false
+	Engine.time_scale = 1.0
 
+	if pause_menu:
+		pause_menu.visible = false
+	if wave_complete_screen:
+		wave_complete_screen.visible = false
+	if game_over_screen:
+		game_over_screen.visible = false
+
+	print("[Game] Scene initialized - unpaused, menus hidden")
 	# Add to game_scene group for scrap tracking
 	add_to_group("game_scene")
 	active_consoles.clear()
@@ -145,10 +156,7 @@ func _ready() -> void:
 	MapSystem.area_changed.connect(_on_area_changed)
 	MapSystem.portal_appeared.connect(_on_portal_appeared)
 
-	# Hide menus
-	pause_menu.visible = false
-	wave_complete_screen.visible = false
-	game_over_screen.visible = false
+	# NOTE: Menus already hidden at start of _ready() for instant feedback
 
 	# Connect GameManager signals
 	GameManager.score_changed.connect(_on_score_changed)

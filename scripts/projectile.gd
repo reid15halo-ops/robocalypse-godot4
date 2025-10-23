@@ -24,8 +24,16 @@ var penetration_count: int = 0
 
 var _enemy_overlap_shape := CircleShape2D.new()
 
+# Visual (Phase 1 Enhancement)
+enum ProjectileType {BULLET, LASER, MISSILE}
+@export var projectile_type: ProjectileType = ProjectileType.BULLET
+var sprite: AnimatedSprite2D = null
+var use_sprites: bool = true
+
 
 func _ready() -> void:
+	# Setup animated sprite (Phase 1)
+	_setup_sprite()
 	# Set collision
 	collision_layer = 8  # Dedicated projectile layer
 	collision_mask = 4   # Only collide physically with walls
@@ -153,3 +161,59 @@ func _check_enemy_overlap() -> void:
 		if collider and collider.is_in_group("enemies"):
 			_hit_enemy(collider)
 			break
+
+
+func _setup_sprite() -> void:
+	"""Setup AnimatedSprite2D based on projectile type (Phase 1)"""
+	sprite = AnimatedSprite2D.new()
+	sprite.z_index = 2
+	sprite.centered = true
+	sprite.name = "Sprite"
+	add_child(sprite)
+	
+	var sprite_path: String = ""
+	
+	match projectile_type:
+		ProjectileType.BULLET:
+			sprite_path = "res://assets/anim/projectile_bullet.tres"
+			sprite.scale = Vector2(0.8, 0.8)
+		ProjectileType.LASER:
+			sprite_path = "res://assets/anim/projectile_laser.tres"
+			sprite.scale = Vector2(1.0, 1.0)
+		ProjectileType.MISSILE:
+			sprite_path = "res://assets/anim/projectile_missile.tres"
+			sprite.scale = Vector2(1.2, 1.2)
+	
+	if ResourceLoader.exists(sprite_path):
+		sprite.sprite_frames = load(sprite_path)
+		if sprite.sprite_frames.has_animation("fly"):
+			sprite.play("fly")
+		elif sprite.sprite_frames.has_animation("idle"):
+			sprite.play("idle")
+	else:
+		# Fallback to ColorRect if sprite not found
+		push_warning("Projectile sprite not found: " + sprite_path)
+		sprite.queue_free()
+		sprite = null
+		use_sprites = false
+		_create_fallback_visual()
+
+
+func _create_fallback_visual() -> void:
+	"""Fallback ColorRect visual for projectiles without sprites (Phase 1)"""
+	var rect = ColorRect.new()
+	rect.name = "FallbackVisual"
+	
+	match projectile_type:
+		ProjectileType.BULLET:
+			rect.size = Vector2(8, 4)
+			rect.color = Color(1.0, 1.0, 0.5)  # Yellow
+		ProjectileType.LASER:
+			rect.size = Vector2(12, 6)
+			rect.color = Color(0.2, 0.8, 1.0)  # Cyan
+		ProjectileType.MISSILE:
+			rect.size = Vector2(16, 8)
+			rect.color = Color(1.0, 0.3, 0.1)  # Orange-red
+	
+	rect.position = -rect.size / 2
+	add_child(rect)

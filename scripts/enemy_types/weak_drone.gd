@@ -33,10 +33,32 @@ func _ready() -> void:
 	# Initialize
 	current_health = max_health
 	player = GameManager.get_player()
+	
+	# Setup animated sprite
+	_setup_sprite()
 
 	# Distinct visual: Small and green (weak)
 	modulate = Color(0.5, 1.5, 0.5)  # Bright green
 	scale = Vector2(0.6, 0.6)  # Noticeably smaller
+
+
+func _setup_sprite() -> void:
+	"""Setup AnimatedSprite2D for weak drone"""
+	var sprite = AnimatedSprite2D.new()
+	sprite.z_index = 1
+	sprite.centered = true
+	sprite.name = "Sprite"
+	add_child(sprite)
+	
+	var sprite_path = "res://assets/anim/drone_standard.tres"
+	if ResourceLoader.exists(sprite_path):
+		sprite.sprite_frames = load(sprite_path)
+		if sprite.sprite_frames.has_animation("hover"):
+			sprite.play("hover")
+		elif sprite.sprite_frames.has_animation("idle"):
+			sprite.play("idle")
+	else:
+		push_warning("Weak drone sprite not found: " + sprite_path)
 
 
 func _physics_process(delta: float) -> void:

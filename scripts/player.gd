@@ -92,6 +92,11 @@ var sprite: AnimatedSprite2D = null
 var visual_node: Node2D = null
 var use_sprites: bool = true  # Sprites are now available!
 
+# Animation State Machine (Phase 1)
+enum AnimState {IDLE, WALK, ATTACK, DAMAGED, DEATH}
+var current_anim_state: AnimState = AnimState.IDLE
+var previous_anim_state: AnimState = AnimState.IDLE
+
 # ============================================================================
 # ITEM UPGRADE TRACKING SYSTEM
 # ============================================================================
@@ -271,6 +276,9 @@ func _physics_process(delta: float) -> void:
 
 func perform_melee_attack() -> void:
 	"""Perform automatic melee attack in alternating directions"""
+	# Trigger attack animation (Phase 1)
+	trigger_attack_animation()
+	
 	# Get current weapon data for special effects
 	var weapon_data: Dictionary = get_meta("current_weapon", {})
 	var has_aoe: bool = weapon_data.get("has_aoe", false)
@@ -439,6 +447,9 @@ func take_damage(damage: int) -> void:
 		current_health -= int(final_damage)
 		current_health = max(0, current_health)
 		health_changed.emit(int(current_health))
+		
+		# Trigger damage animation (Phase 1)
+		trigger_damage_animation()
 
 		# Play damage sound
 		if final_damage >= 50:
@@ -458,6 +469,9 @@ func take_damage(damage: int) -> void:
 
 func die() -> void:
 	"""Handle player death"""
+	# Trigger death animation (Phase 1)
+	trigger_death_animation()
+	
 	# Play death sound
 	AudioManager.play_death_sound()
 
@@ -636,18 +650,96 @@ func _setup_visual() -> void:
 
 
 func _update_sprite_animation() -> void:
-	"""Update sprite animation based on movement"""
+	"""Update sprite animation based on movement - enhanced with state machine"""
 	if not use_sprites or not sprite:
 		return
 
+	# Determine target animation state
+	var target_state: AnimState = AnimState.IDLE
+	
 	if velocity.length() > 12.0:
-		if sprite.animation != "walk":
-			sprite.play("walk")
+		target_state = AnimState.WALK
 	else:
-		if sprite.animation != "idle":
-			sprite.play("idle")
-
+		target_state = AnimState.IDLE
+	
+	# Transition to new state if different
+	if target_state != current_anim_state:
+		_set_animation_state(target_state)
+	
+	# Always update facing direction
 	sprite.flip_h = facing_direction == -1
+
+
+func _set_animation_state(new_state: AnimState) -> void:
+	"""Change animation state with proper transitions"""
+	if not sprite or not sprite.sprite_frames:
+		return
+	
+	previous_anim_state = current_anim_state
+	current_anim_state = new_state
+	
+	match current_anim_state:
+		AnimState.IDLE:
+			if sprite.sprite_frames.has_animation("idle"):
+				sprite.play("idle")
+		AnimState.WALK:
+			if sprite.sprite_frames.has_animation("walk"):
+				sprite.play("walk")
+		AnimState.ATTACK:
+			if sprite.sprite_frames.has_animation("attack"):
+				sprite.play("attack")
+			else:
+				# Fallback if attack animation not yet created
+				if sprite.sprite_frames.has_animation("walk"):
+					sprite.play("walk")
+		AnimState.DAMAGED:
+			if sprite.sprite_frames.has_animation("damaged"):
+				sprite.play("damaged")
+			# Auto-return to previous state after damage animation
+			if sprite.sprite_frames.has_animation("damaged"):
+				sprite.animation_finished.connect(_on_damage_animation_finished, CONNECT_ONE_SHOT)
+		AnimState.DEATH:
+			if sprite.sprite_frames.has_animation("death"):
+				sprite.play("death")
+			elif sprite.sprite_frames.has_animation("idle"):
+				sprite.play("idle")
+				sprite.modulate = Color(0.5, 0.5, 0.5, 0.5)  # Fade out
+
+
+func _on_damage_animation_finished() -> void:
+	"""Return to previous state after damage animation completes"""
+	if current_anim_state == AnimState.DAMAGED:
+		_set_animation_state(previous_anim_state)
+
+
+func trigger_attack_animation() -> void:
+	"""Trigger attack animation (called by melee attack)"""
+	if use_sprites and sprite:
+		_set_animation_state(AnimState.ATTACK)
+		# Auto-return after attack animation
+		if sprite.sprite_frames and sprite.sprite_frames.has_animation("attack"):
+			sprite.animation_finished.connect(_on_attack_animation_finished, CONNECT_ONE_SHOT)
+
+
+func _on_attack_animation_finished() -> void:
+	"""Return to idle/walk after attack animation completes"""
+	if current_anim_state == AnimState.ATTACK:
+		if velocity.length() > 12.0:
+			_set_animation_state(AnimState.WALK)
+		else:
+			_set_animation_state(AnimState.IDLE)
+
+
+func trigger_damage_animation() -> void:
+	"""Trigger damage/hit animation (called when taking damage)"""
+	if use_sprites and sprite:
+		_set_animation_state(AnimState.DAMAGED)
+
+
+func trigger_death_animation() -> void:
+	"""Trigger death animation (called on death)"""
+	if use_sprites and sprite:
+		_set_animation_state(AnimState.DEATH)
 
 
 func apply_slow(slow_amount: float) -> void:

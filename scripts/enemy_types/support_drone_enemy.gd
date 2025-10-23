@@ -38,6 +38,9 @@ func _ready() -> void:
 	add_to_group("support_drones")
 	current_health = max_health
 	player = GameManager.get_player()
+	
+	# Setup animated sprite
+	_setup_sprite()
 
 	# Random aura with distinct visuals
 	var aura_config = aura_types[randi() % aura_types.size()]
@@ -45,6 +48,25 @@ func _ready() -> void:
 	aura_value = aura_config.value
 	modulate = aura_config.color
 	scale = aura_config.scale  # Different shape/size per type
+
+
+func _setup_sprite() -> void:
+	"""Setup AnimatedSprite2D for support drone"""
+	var sprite = AnimatedSprite2D.new()
+	sprite.z_index = 1
+	sprite.centered = true
+	sprite.name = "Sprite"
+	add_child(sprite)
+	
+	var sprite_path = "res://assets/anim/drone_sniper.tres"  # Support drones use sniper variant
+	if ResourceLoader.exists(sprite_path):
+		sprite.sprite_frames = load(sprite_path)
+		if sprite.sprite_frames.has_animation("hover"):
+			sprite.play("hover")
+		elif sprite.sprite_frames.has_animation("idle"):
+			sprite.play("idle")
+	else:
+		push_warning("Support drone sprite not found: " + sprite_path)
 
 
 func _physics_process(delta: float) -> void:

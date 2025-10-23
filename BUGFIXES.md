@@ -1,4 +1,4 @@
-﻿# Roboclaust - Critical Bugfixes & Improvements
+# Roboclaust - Critical Bugfixes & Improvements
 
 ## Summary
 All critical bugs reported by the user have been fixed and additional improvements have been implemented.
@@ -7,48 +7,76 @@ All critical bugs reported by the user have been fixed and additional improvemen
 
 ## âœ… Critical Bug Fixes
 
-### 1. **Game No Longer Freezes on Start (Issue #31)** âœ"
-**Problem:** After clicking "Start Game", the game would freeze on the pause screen with non-functional buttons. The game appeared stuck but Resume/Main Menu buttons were clickable but did nothing.
+### 1. Game start / pause-state desynchronization (Issue #31)
 
-**Root Cause:** Pause state desynchronization between `GameManager.is_paused` and `get_tree().paused`:
-- `GameManager.reset_game()` set `is_paused = false` but didn't reset `get_tree().paused`
-- If `get_tree().paused` was `true` from a previous session (pause, time control, etc.), it remained `true`
-- Game scene would load with `pause_menu.visible = false` but tree still paused
-- Only nodes with `PROCESS_MODE_ALWAYS` would run, but pause menu was hidden
-- Result: Game appeared frozen with no visible UI
+Problem: After clicking "Start Game", the scene could load in a paused state (pause UI hidden or visible briefly) which made the game appear frozen. This was caused by desynchronization between the singleton pause flag and the SceneTree pause state.
 
-**Fix 1 (Primary):** Added explicit tree unpause in `GameManager.reset_game()`:
-```gdscript
-func reset_game() -> void:
-    # ... reset variables ...
+Root cause summary:
+- `GameManager.is_paused` could be set to false but `get_tree().paused` remained true from prior sessions or leftover state.
+- Menus were hidden late in scene initialization, which could briefly expose paused UI behavior.
 
-    # CRITICAL FIX: Ensure tree pause state matches is_paused flag
-    get_tree().paused = false
+Fixes applied:
 
-    score_changed.emit(score)
-```
-
-**Fix 2 (Safety):** Added safety unpause in `game.gd._ready()`:
+- Ensure scene tree and runtime are unpaused early in `game.gd._ready()` and menus hidden immediately:
 ```gdscript
 func _ready() -> void:
-    # SAFETY FIX: Ensure tree is not paused when game scene loads
+    # Ensure the tree is unpaused and time scale normalized on scene start
     get_tree().paused = false
+    GameManager.is_paused = false
+    Engine.time_scale = 1.0
 
+    if pause_menu:
+        pause_menu.visible = false
+    if wave_complete_screen:
+        wave_complete_screen.visible = false
+    if game_over_screen:
+        game_over_screen.visible = false
+
+    print("[Game] Scene initialized - unpaused, menus hidden")
     # ... rest of initialization ...
 ```
 
-**Locations:**
-- `scripts/GameManager.gd:41-44`
-- `scripts/game.gd:88-90`
+- Synchronize singleton state with SceneTree in `GameManager.reset_game()`:
+```gdscript
+func reset_game() -> void:
+    # ... reset variables ...
+    is_paused = false
 
-**Testing:**
-- Basic start: Main Menu → Start Game (works immediately)
-- Pause cycle: Start → Pause → Resume → Quit → Start (no freeze)
+    # CRITICAL: Synchronize tree state and time scale
+    get_tree().paused = false
+    Engine.time_scale = 1.0
+
+    score_changed.emit(score)
+    scrap_changed.emit(scrap)
+```
+
+Testing performed / recommended:
+- Cold start: Main Menu → Start Game (immediate play)
+- Pause cycle: Pause → Resume → Quit → Start (no freeze)
 - Game over restart: Start → Die → Restart (unpaused)
+
+Locations changed:
+- `scripts/game.gd` (startup _ready changes)
+- `scripts/GameManager.gd` (reset_game synchronization)
 
 ---
 
-### 2. **Drone Can Now Take Damage** âœ"
+### 2. **Drone Can Now Take Damage**
+Problem: Hacker's controllable drone was invincible; contact collisions did not deal damage.
+
+Fix: Added contact-collision damage checks in `controllable_drone.gd`:
+```gdscript
+# Check for enemy collisions (contact damage)
+if not invulnerable:
+    for i in get_slide_collision_count():
+        var collision = get_slide_collision(i)
+        var collider = collision.get_collider()
+        if collider and collider.is_in_group("enemies"):
+            take_damage(10)  # Contact damage from enemies
+            break
+```
+
+Location: `scripts/controllable_drone.gd`
 **Problem:** Hacker's controllable drone was invincible, couldn't lose HP or die.
 
 **Fix:** Added enemy collision detection in `controllable_drone.gd:120-127`

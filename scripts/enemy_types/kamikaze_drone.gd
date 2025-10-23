@@ -22,10 +22,33 @@ func _ready() -> void:
 	add_to_group("enemies")
 	current_health = max_health
 	player = GameManager.get_player()
+	
+	# Setup animated sprite
+	_setup_sprite()
+	
 	# Distinct visual: Bright red, pulsing (dangerous!)
 	modulate = Color(2.0, 0.2, 0.2)  # Very bright red
 	scale = Vector2(0.9, 0.9)  # Slightly smaller but dangerous
 	_start_pulsing()  # Add pulsing effect
+
+
+func _setup_sprite() -> void:
+	"""Setup AnimatedSprite2D for kamikaze drone"""
+	var sprite = AnimatedSprite2D.new()
+	sprite.z_index = 1
+	sprite.centered = true
+	sprite.name = "Sprite"
+	add_child(sprite)
+	
+	var sprite_path = "res://assets/anim/drone_kamikaze.tres"
+	if ResourceLoader.exists(sprite_path):
+		sprite.sprite_frames = load(sprite_path)
+		if sprite.sprite_frames.has_animation("hover"):
+			sprite.play("hover")
+		elif sprite.sprite_frames.has_animation("idle"):
+			sprite.play("idle")
+	else:
+		push_warning("Kamikaze drone sprite not found: " + sprite_path)
 
 
 func _start_pulsing() -> void:
